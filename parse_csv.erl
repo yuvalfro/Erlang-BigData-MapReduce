@@ -12,25 +12,20 @@ fold_fun %%user supplied fold function
 
 main([File]) ->
 	Rows = parse_file(File),
-	print_rows(Rows,1);
-main([]) ->
-	usage().
+	Rows.
+	%print_rows(Rows,1);
 
-usage() ->
-	io:format("usage: read_csv File\n"),
-	halt(1).
-
-print_rows([],_) ->
-	ok;
-print_rows([Row|T],Num) ->
-	Authors = string:tokens(element(2,Row),[$|]),
-	io:format("The authors in row ~p are: ~ts~n", [Num,list_to_binary(Authors)]),
-	print_rows(T,Num+1).
+%print_rows([],_) ->
+%	ok;
+%print_rows([Row|T],Num) ->
+%	Authors = string:tokens(element(2,Row),[$|]),
+%	io:format("The authors in row ~p are: ~ts~n", [Num,list_to_binary(Authors)]),
+%	print_rows(T,Num+1).
 
 %% ——— Exported ——————————
-parse_file(FileName,InitialState,Fun) ->
-   {ok, Binary} = file:read_file(FileName),
-    parse(Binary,InitialState,Fun).
+%parse_file(FileName,InitialState,Fun) ->
+%   {ok, Binary} = file:read_file(FileName),
+%    parse(Binary,InitialState,Fun).
 
 parse_file(FileName)  ->
    {ok, Binary} = file:read_file(FileName),
