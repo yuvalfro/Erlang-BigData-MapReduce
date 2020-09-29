@@ -1,5 +1,5 @@
 %!/usr/bin/env escript
--module(parse_csv).
+%-module(parse_csv).
 -export([main/1]).
 -record(ecsv,{
 state = field_start, %%field_start|normal|quoted|post_quoted
