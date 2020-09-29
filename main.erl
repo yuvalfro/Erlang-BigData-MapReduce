@@ -8,51 +8,123 @@
 %%%-------------------------------------------------------------------
 -module(main).
 -author("oem").
+-export([start/1]).
 -include("parse_csv.erl").
 %% API
--export([main/1]).
 
-main([File]) ->
+start([File]) ->
   register(mainPRS,self()),
+  put("PRSFinish",0),
   CSV = parse_csv:main([File]),
   N = length(CSV),
-  NumOfProc = 1000,
-  RowsPerProc = erlang:round(N / NumOfProc),
-  ets:new(authors,[bag,named_value]),
-  createProcceses(NumOfProc,RowsPerProc,CSV,1).
+  NumOfProc = 9,
+  RowsPerProc = erlang:trunc(N / NumOfProc),
+  ExtraRows = RowsPerProc*NumOfProc < N,
+  case ExtraRows of    % In case we have more rows than processes, the last process will have extra rows
+    true -> Extra = N - RowsPerProc*NumOfProc ;
+    false -> Extra = 0
+  end,
+  ets:new(authors,[bag,named_table,public,{write_concurrency,true}]),
+  ets:new(keycounter,[set,named_table,public]),
+  ets:insert(keycounter, {count, 0}),
+  createProcceses(NumOfProc,RowsPerProc,CSV,0,Extra,NumOfProc),
+  gather(NumOfProc),  % Gather function - make the program wait until all processes finish
+  Temp = element(2,lists:nth(1,ets:lookup(keycounter, count))),
+  case Temp of  % If all processes finish - find all the keys in the ets
+    NumOfProc -> Keys = keys();
+    _ -> do_nothing
+  end,
+  checkKeysDup(Keys),
+  {ok,WriteFile} = file:open("test.ets",[write]),         % Create result file
+  TableList = ets:tab2list(authors),
+  write_text(TableList,WriteFile),
+  ets:delete(authors),
+  ets:delete(keycounter),
+  unregister(mainPRS).
 
+%% Write to etsRes_204265110.ets
+write_text([],_) -> ok;
+write_text([{K,V}|T],WriteFile) ->
+  io:format(WriteFile,"~s ~s~n",[K,V]),
+  write_text(T,WriteFile).
 
 %% Finish creating all the processes
-createProcceses(NumOfProc, _, _,Curr) when Curr =:= NumOfProc  ->      % Finish creating all the processes, start sending messages
-  do_nothing;                                                          % Master process sending the start message
+createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra, NumOfProc) when Curr + 1 =:= NumOfProc  ->               % Create the last process - process number NumOfProc
+  register(getProcessName(Curr), spawn(fun() -> extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc) end));
 %% Otherwise keep creating the processes
-createProcceses(NumOfProc, RowsPerProc, CSV, Curr) ->                  % Create process number i, register him as 'pidi'
-  register(getProcessName(Curr), spawn(fun() -> extractAuthors(Curr,RowsPerProc,CSV) end)),
-  createProcceses(NumOfProc, RowsPerProc, CSV, Curr+1).
+createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra, NumOfProc) ->                                            % Create process number i, register him as 'pidi'
+  register(getProcessName(Curr), spawn(fun() -> extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc) end)),
+  createProcceses(NumOfProc, RowsPerProc, CSV, Curr+1,Extra,NumOfProc).
 
 %% Return a name represent a process with the index 'Index'
 %% Used later to register the PID with this name
 getProcessName(Index) -> list_to_atom("pid" ++ integer_to_list(Index)).
 
+%% Extract the authors from the CSV file rows - each process working on RowsPerProc rows
+extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc) ->
+  Start_Row = Curr*RowsPerProc+1,
+  case Curr + 1 =:= NumOfProc of  % Extra rows for the last process
+    true -> End_Row = Curr*RowsPerProc + RowsPerProc + Extra;
+    false -> End_Row = Curr*RowsPerProc + RowsPerProc
+  end,
+  extractAuthors(Start_Row,End_Row,CSV).
 
-extractAuthors(Curr,RowsPerProc,CSV) ->
-  Start_Row = Curr*RowsPerProc,
-  End_Row = Curr*RowsPerProc + RowsPerProc,
-  extractAuthors(Start_Row,Start_Row,End_Row,CSV).
-
-extractAuthors(Index,_,End_Row,CSV) when Index =/= End_Row->
+extractAuthors(Index,End_Row,_) when Index =:= End_Row + 1->
+  ets:update_counter(keycounter, count , {2,1}), % Process finish - +1 to counter
+  mainPRS ! {"Finish"};
+extractAuthors(Index,End_Row,CSV) ->
   CurrRow = lists:nth(Index,CSV),
   Authors = string:tokens(element(2,CurrRow),[$|]),
-  lists:foreach(authorsToETS(Authors),Authors).
+  lists:foreach(fun(A) -> authorsToETS(Authors,A) end ,Authors),
+  extractAuthors(Index+1,End_Row,CSV).
 
+%% Move the authors to ETS table - author A is the key and the rest are values
 authorsToETS(Authors,A) ->
   Key = list_to_atom(A),
   Values = ets:lookup(authors, Key),
+  ets:delete(authors,Key),
   case Values of
-    % There author is new: add him as key and others authors as value
-    [] -> ets:insert(authors,{Key,list_to_tuple(lists:delete(A,lists:flatten(lists:map(fun(X) -> tuple_to_list(X) end, Authors))))});
-    [_] -> Temp = lists:delete(A,lists:flatten(lists:map(fun(X) -> tuple_to_list(X) end, Values))),
-           NewVal = sets:to_list(sets:from_list(Temp ++ Authors)),
-           ets:insert(authors,{Key,list_to_tuple(NewVal)})
+    % The author is new: add him as key and others authors as value
+    [] -> Temp = lists:delete(A,Authors),
+          ets:insert(authors,{Key,Temp});
+    % The author already exist - insert the old and the new values together
+    [Val] -> io:format("~p~n",[Val]),
+             Auth = element(2,Val),
+             Temp = Auth ++ lists:delete(A,Authors),
+             NewVal = removedup(Temp),
+             ets:insert(authors,{Key,NewVal})
   end.
 
+% Gather function - wait until all processes finish
+gather(0) -> do_nothing;
+gather(N) ->
+  receive
+    {"Finish"} -> gather(N-1)
+  end.
+
+%% Remove duplicates from list
+removedup([]) -> [];
+removedup([H|T]) -> [H | [X || X <- removedup(T), X =/= H]].
+
+%% Get a list of the keys in the ets
+keys() ->
+  FirstKey = ets:first(authors),
+  keys(authors, FirstKey, [FirstKey]).
+keys(_TableName, '$end_of_table', ['$end_of_table'|Acc]) ->
+  Acc;
+keys(TableName, CurrentKey, Acc) ->
+  NextKey = ets:next(TableName, CurrentKey),
+  keys(TableName, NextKey, [NextKey|Acc]).
+
+%% Check if there are duplicates in the ets keys
+checkKeysDup([H|T]) ->
+  case lists:member(H, T) of
+    true -> Values = ets:lookup(authors,H),
+            NewVal = [],
+            Temp = lists:flatten(lists:map(fun(X) -> NewVal ++ element(2,X) end, Values)),
+            List = removedup(Temp),
+            ets:delete(authors,H),
+            ets:insert(authors,{H,List});
+    false -> has_dupes(T)
+  end;
+checkKeysDup([]) -> false.
