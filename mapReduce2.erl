@@ -21,7 +21,9 @@ start2([File]) ->
   ValuesMain = ets:lookup(authors,MainAuthor),
   Authors = element(2,lists:nth(1,ValuesMain)),   %% ADD TRY CATCH FOR EMPTY LIST
   %% Foreach author insert to etsL1 and spawn findL2
-  lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}), Y = list_to_atom(X), register(getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor) end)) end,Authors),
+  lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}),
+                          Y = list_to_atom(X),
+                          register(getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor) end)) end,Authors),
   mapReduce1:gather(length(Authors)),
   TableList1 = ets:tab2list(etsL1),
   TableList2 = ets:tab2list(etsL2),
@@ -29,6 +31,7 @@ start2([File]) ->
   io:format("etsL1: ~p~n",[TableList1]),
   io:format("etsL2: ~p~n",[TableList2]),
   io:format("etsL3: ~p~n",[TableList3]),
+  killAll(Authors),
   ets:delete(authors),
   ets:delete(etsL1),
   ets:delete(etsL2),
@@ -62,5 +65,16 @@ findL3(L1A,A,MainAuthor) ->
                             false -> ets:insert(etsL3,{X,A}) end
                           end, Authors),
   X = list_to_atom(L1A),
-  getProcessName(X) ! {"Finish"}.
+  PID = getProcessName(X),
+  PID ! {"Finish"}.
+
+%% Kill all processes
+killAll([]) -> do_nothing;
+killAll([H|T]) ->
+  X = list_to_atom(H),
+  case whereis(getProcessName(X)) of
+       undefined -> do_nothing;
+       PRS -> exit(PRS,kill)
+  end,
+  killAll(T).
 
