@@ -6,13 +6,13 @@
 %%% @end
 %%% Created : 27. Sep 2020 14:58
 %%%-------------------------------------------------------------------
--module(main).
+%-module('mapReduce1').
 -author("oem").
--export([start/1]).
+-export([start1/1,gather/1]).
 -include("parse_csv.erl").
 %% API
 
-start([File]) ->
+start1([File]) ->
   register(mainPRS,self()),
   CSV = parse_csv:main([File]),
   N = length(CSV),
@@ -30,16 +30,16 @@ start([File]) ->
   gather(NumOfProc),               % Gather function - make the program wait until all processes finish
   Temp = element(2,lists:nth(1,ets:lookup(keycounter, count))),
   case Temp of                     % If all processes finish - find all the keys in the ets
-    NumOfProc -> checkKeysDup(keys());
+    NumOfProc -> reducer(keys());
     _ -> do_nothing
   end,
   {ok,WriteFile} = file:open("test.ets",[write]),         % Create result file
   TableList = ets:tab2list(authors),
   write_text(TableList,WriteFile),
-  ets:delete(authors),
+ % ets:delete(authors),
   ets:delete(keycounter),
-  killAll(NumOfProc,0),
-  unregister(mainPRS).
+  killAll(NumOfProc,0).
+  %unregister(mainPRS).
 
 %% Write to etsRes_204265110.ets
 write_text([],_) -> ok;
@@ -57,7 +57,8 @@ createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra) ->                    
 
 %% Return a name represent a process with the index 'Index'
 %% Used later to register the PID with this name
-getProcessName(Index) -> list_to_atom("pid" ++ integer_to_list(Index)).
+getProcessName(Index) when is_number(Index) -> list_to_atom("pid" ++ integer_to_list(Index));
+getProcessName(Index) when is_atom(Index) -> list_to_atom("pid" ++ atom_to_list(Index)).
 
 %% Extract the authors from the CSV file rows - each process working on RowsPerProc rows
 extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc) ->
@@ -123,7 +124,7 @@ keys(TableName, CurrentKey, Acc) ->
   keys(TableName, NextKey, [NextKey|Acc]).
 
 %% Check if there are duplicates in the ets keys
-checkKeysDup([H|T]) ->
+reducer([H|T]) ->
   case lists:member(H, T) of
     % Found duplication - merge the values into one value and insert
     true -> Values = ets:lookup(authors,H),
@@ -132,9 +133,9 @@ checkKeysDup([H|T]) ->
             List = removedup(Temp),
             ets:delete(authors,H),
             ets:insert(authors,{H,List});
-    false -> checkKeysDup(T)
+    false -> reducer(T)
   end;
-checkKeysDup([]) -> false.
+reducer([]) -> false.
 
 %% Kill all processes
 killAll(NumOfProc,Curr) when Curr + 1 =:= NumOfProc -> case whereis(getProcessName(Curr)) of
