@@ -23,7 +23,7 @@ start1([File]) ->
     true -> Extra = N - RowsPerProc*NumOfProc ;
     false -> Extra = 0
   end,
-  ets:new(authors,[bag,named_table,public,{write_concurrency,true}]),
+  %ets:new(authors,[bag,named_table,public,{write_concurrency,true}]),
   ets:new(keycounter,[set,named_table,public]),
   ets:insert(keycounter, {count, 0}),
   createProcceses(NumOfProc,RowsPerProc,CSV,0,Extra),
@@ -49,10 +49,12 @@ write_text([{K,V}|T],WriteFile) ->
 
 %% Finish creating all the processes
 createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra) when Curr + 1 =:= NumOfProc  ->               % Create the last process - process number NumOfProc
-  register(getProcessName(Curr), spawn(fun() -> extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc) end));
+  CurrPRS = list_to_atom(integer_to_list(Curr) ++ integer_to_list(os:system_time(microsecond))),
+  register(getProcessName(CurrPRS), spawn(fun() -> extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc) end));
 %% Otherwise keep creating the processes
 createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra) ->                                            % Create process number i, register him as 'pidi'
-  register(getProcessName(Curr), spawn(fun() -> extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc) end)),
+  CurrPRS = list_to_atom(integer_to_list(Curr) ++ integer_to_list(os:system_time(microsecond))),
+  register(getProcessName(CurrPRS), spawn(fun() -> extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc) end)),
   createProcceses(NumOfProc, RowsPerProc, CSV, Curr+1,Extra).
 
 %% Return a name represent a process with the index 'Index'
@@ -140,10 +142,10 @@ reducer([]) -> false.
 %% Kill all processes
 killAll(NumOfProc,Curr) when Curr + 1 =:= NumOfProc -> case whereis(getProcessName(Curr)) of
                                                          undefined -> do_nothing;
-                                                         PRS -> exit(PRS,kill)
+                                                         PRS -> unregister(getProcessName(Curr)), exit(PRS,kill)
                                                        end;
 killAll(NumOfProc,Curr) -> case whereis(getProcessName(Curr)) of
                              undefined -> do_nothing;
-                             PRS -> exit(PRS,kill)
+                             PRS -> unregister(getProcessName(Curr)), exit(PRS,kill)
                            end,
                           killAll(NumOfProc,Curr+1).
