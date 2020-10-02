@@ -23,6 +23,7 @@ start2([File]) ->
   ets:new(tableL1,[set,named_table]),
   ets:new(tableL2,[set,named_table]),
   ets:new(tableL3,[set,named_table]),  %%% MAYBE CHANGE TO BAG - IF YES SO NEED TO CHANGE insertETStoTable FUNCTION (WILL COUNT THE SAME AUTHOR TWICE)
+  G = digraph:new(),
   ets:insert(tableL1,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
   ets:insert(tableL2,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
   ets:insert(tableL3,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
@@ -37,6 +38,13 @@ start2([File]) ->
   TableList1 = ets:tab2list(etsL1),
   TableList2 = ets:tab2list(etsL2),
   TableList3 = ets:tab2list(etsL3),
+  digraph:add_vertex(G,MainAuthor), % Add main author as vertex
+  addVertices(G, TableList1),       % Add all the authors in level L1 as vertex
+  addVertices(G, TableList2),       % Add all the authors in level L2 as vertex
+  addVertices(G, TableList3),       % Add all the authors in level L3 as vertex
+  addEdges(G,TableList1),           % Build edges between L1 authors to the main author
+  addEdges(G,TableList2),           % Build edges between L2 authors to their fathers in L1
+  addEdges(G,TableList3),           % Build edges between L3 authors to their fathers in L2
   insertETStoTable(TableList1,1),
   insertETStoTable(TableList2,2),
   insertETStoTable(TableList3,3),
@@ -49,6 +57,7 @@ start2([File]) ->
   io:format("length etsL2: ~p~n",[length(TableList2)]),
   io:format("etsL3: ~p~n",[TableList3]),
   io:format("length etsL2: ~p~n",[length(TableList3)]),
+  io:format("The graph G has ~p edges~n",[digraph:no_edges(G)]),  % Print number of edges
   %io:format("Letter count L1: ~p~n",[TabL1]),
   %io:format("Letter count L2: ~p~n",[TabL2]),
   %io:format("Letter count L3: ~p~n",[TabL3]),
@@ -109,6 +118,17 @@ insertETStoTable([H|T],L) ->
     3 -> ets:insert(tableL3,{Key,NewVal})
   end,
   insertETStoTable(T,L).
+
+%% Add vertices to the graph - each vertex is an author from the etsL1/L2/L3 list
+addVertices(G,ListETS) ->
+  L = lists:map(fun(X) -> element(1,X) end, ListETS),
+  [digraph:add_vertex(G,Author) || Author <- L].
+
+%% Connect edges - we get list to tuples {son,father}
+addEdges(_,[]) -> do_nothing;
+addEdges(G,[H|T]) ->
+  digraph:add_edge(G,element(1,H),element(2,H)),
+  addEdges(G,T).
 
 %% Kill all processes
 killAll([]) -> do_nothing;
