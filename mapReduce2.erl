@@ -22,7 +22,7 @@ start2([File]) ->
   ets:new(etsL3,[set,named_table,public]),
   ets:new(tableL1,[set,named_table]),
   ets:new(tableL2,[set,named_table]),
-  ets:new(tableL3,[set,named_table]),
+  ets:new(tableL3,[set,named_table]),  %%% MAYBE CHANGE TO BAG - IF YES SO NEED TO CHANGE insertETStoTable FUNCTION (WILL COUNT THE SAME AUTHOR TWICE)
   ets:insert(tableL1,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
   ets:insert(tableL2,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
   ets:insert(tableL3,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
@@ -32,7 +32,8 @@ start2([File]) ->
   lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}),
                           Y = list_to_atom(X),
                           register(getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor) end)) end,Authors),
-  mapReduce1:gather(length(Authors)),
+  AllChildren = lists:map(fun(X) -> length(element(2,lists:nth(1,ets:lookup(authors,list_to_atom(X))))) end, Authors),
+  mapReduce1:gather(lists:sum(AllChildren)), % Count all the children of authors to know when to finish
   TableList1 = ets:tab2list(etsL1),
   TableList2 = ets:tab2list(etsL2),
   TableList3 = ets:tab2list(etsL3),
@@ -42,9 +43,12 @@ start2([File]) ->
   %TabL1 = ets:tab2list(tableL1),
   %TabL2 = ets:tab2list(tableL2),
   %TabL3 = ets:tab2list(tableL3),
-  %io:format("etsL1: ~p~n",[TableList1]),
-  %io:format("etsL2: ~p~n",[TableList2]),
-  %io:format("etsL3: ~p~n",[TableList3]),
+  io:format("etsL1: ~p~n",[TableList1]),
+  io:format("length etsL1: ~p~n",[length(TableList1)]),
+  io:format("etsL2: ~p~n",[TableList2]),
+  io:format("length etsL2: ~p~n",[length(TableList2)]),
+  io:format("etsL3: ~p~n",[TableList3]),
+  io:format("length etsL2: ~p~n",[length(TableList3)]),
   %io:format("Letter count L1: ~p~n",[TabL1]),
   %io:format("Letter count L2: ~p~n",[TabL2]),
   %io:format("Letter count L3: ~p~n",[TabL3]),
@@ -66,30 +70,17 @@ start2([File]) ->
 findL2(A,MainAuthor) ->
   Values = ets:lookup(authors,list_to_atom(A)),
   Authors = element(2,lists:nth(1,Values)),
-  ChildCounter = counters:new(1,[atomics]),
   lists:foreach(fun(X) -> MainAuthorCheck = list_to_atom(X) == MainAuthor,
                          case MainAuthorCheck or ets:member(etsL1,X) of  % Check if the author in etsL1 or he is the main author
                             % The author in L1, don't insert again
-                            true -> do_nothing;
+                            true -> mainPRS ! {"Finish"};
                             %% The author not in L1, insert to etsL2 and spawn findL3
-                            false -> counters:add(ChildCounter,1,1),
-                                    Y =counters:get(ChildCounter,1),
-                                    io:format("Counter of ~p is ~p~n",[X,Y]),
-                                     ets:insert(etsL2,{X,A}),
+                            false -> ets:insert(etsL2,{X,A}),
                                      CurrPRS = list_to_atom(X ++ integer_to_list(os:system_time(microsecond))),
-                                     register(getProcessName(CurrPRS),spawn(fun() -> findL3(CurrPRS,X,MainAuthor) end)) end
-                          end, Authors),
-  receive
-    {"Finish",PID} ->
-      case counters:get(ChildCounter,1) of
-        0 -> mainPRS ! {"Finish"},
-            unregister(PID),exit(PID,kill);
-        _ -> counters:sub(ChildCounter,1,1),
-          io:format("Counter of ~p is ~p~n",[PID,ChildCounter])
-      end
-  end.
+                                     register(getProcessName(CurrPRS),spawn(fun() -> findL3(X,MainAuthor) end)) end
+                          end, Authors).
 
-findL3(CurrPRS,A,MainAuthor) ->
+findL3(A,MainAuthor) ->
   Values = ets:lookup(authors,list_to_atom(A)),
   Authors = element(2,lists:nth(1,Values)),
   lists:foreach(fun(X) -> MainAuthorCheck = list_to_atom(X) == MainAuthor,
@@ -99,8 +90,7 @@ findL3(CurrPRS,A,MainAuthor) ->
                             %% The author not in L1, insert to etsL2 and spawn findL3
                             false -> ets:insert(etsL3,{X,A}) end
                           end, Authors),
-  PID = getProcessName(CurrPRS),
-  PID ! {"Finish",PID}.
+  mainPRS ! {"Finish"}.
 
 %% Count for each level the name of authors that the family name starts in each letter
 insertETStoTable([],_) -> do_nothing;
