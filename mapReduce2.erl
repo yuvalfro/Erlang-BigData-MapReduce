@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 30. Sep 2020 12:23
 %%%-------------------------------------------------------------------
--module(mapReduce2).
+%-module(mapReduce2).
 -author("oem").
 -export([start2/1]).
 -include("mapReduce1.erl").
@@ -14,7 +14,7 @@
 
 start2([File]) ->
   file:delete("test.ets"),
-  ets:new(authors,[bag,named_table,public]),
+  %ets:new(authors,[bag,named_table,public]),
   mapReduce1:start1([File]),
   MainAuthor = 'Anthony Hartley',   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
   ets:new(etsL1,[set,named_table,public]),
