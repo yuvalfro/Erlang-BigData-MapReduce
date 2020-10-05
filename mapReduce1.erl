@@ -8,11 +8,11 @@
 %%%-------------------------------------------------------------------
 %-module('mapReduce1').
 -author("oem").
--export([start1/2,gather/1]).
+-export([start1/3,gather/1]).
 -include("parse_csv.erl").
 %% API
 
-start1([File],PC) ->
+start1([File],PC,PCNUM) ->
   %register(mainPRS,self()),
   CSV = parse_csv:main([File]),
   N = length(CSV),
@@ -26,7 +26,7 @@ start1([File],PC) ->
   %ets:new(authors,[bag,named_table,public,{write_concurrency,true}]),
   ets:new(keycounter,[set,named_table,public]),
   ets:insert(keycounter, {count, 0}),
-  createProcceses(NumOfProc,RowsPerProc,CSV,0,Extra,PC),
+  createProcceses(NumOfProc,RowsPerProc,CSV,0,Extra,PC,PCNUM),
   gather(NumOfProc),               % Gather function - make the program wait until all processes finish
   Temp = element(2,lists:nth(1,ets:lookup(keycounter, count))),
   case Temp of                     % If all processes finish - find all the keys in the ets
@@ -38,7 +38,7 @@ start1([File],PC) ->
   write_text(TableList,WriteFile),
  % ets:delete(authors),
   ets:delete(keycounter),
-  killAll(NumOfProc,0).
+  killAll(NumOfProc,0,PCNUM).
   %unregister(mainPRS).
 
 %% Write to etsRes_204265110.ets
@@ -48,14 +48,14 @@ write_text([{K,V}|T],WriteFile) ->
   write_text(T,WriteFile).
 
 %% Finish creating all the processes
-createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra,PC) when Curr + 1 =:= NumOfProc  ->               % Create the last process - process number NumOfProc
-  CurrPRS = list_to_atom(integer_to_list(Curr) ++ integer_to_list(os:system_time(microsecond))),
+createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra, PC, PCNUM) when Curr + 1 =:= NumOfProc  ->               % Create the last process - process number NumOfProc
+  CurrPRS = list_to_atom((integer_to_list(Curr) ++ integer_to_list(PCNUM))),
   register(getProcessName(CurrPRS), spawn(fun() -> extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc,PC) end));
 %% Otherwise keep creating the processes
-createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra,PC) ->                                            % Create process number i, register him as 'pidi'
-  CurrPRS = list_to_atom(integer_to_list(Curr) ++ integer_to_list(os:system_time(microsecond))),
+createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra, PC, PCNUM) ->                                            % Create process number i, register him as 'pidi'
+  CurrPRS = list_to_atom((integer_to_list(Curr) ++ integer_to_list(PCNUM))),
   register(getProcessName(CurrPRS), spawn(fun() -> extractAuthors(Curr,RowsPerProc,CSV,Extra,NumOfProc,PC) end)),
-  createProcceses(NumOfProc, RowsPerProc, CSV, Curr+1, Extra, PC).
+  createProcceses(NumOfProc, RowsPerProc, CSV, Curr+1, Extra, PC, PCNUM).
 
 %% Return a name represent a process with the index 'Index'
 %% Used later to register the PID with this name
@@ -140,12 +140,14 @@ reducer([H|T]) ->
 reducer([]) -> false.
 
 %% Kill all processes
-killAll(NumOfProc,Curr) when Curr + 1 =:= NumOfProc -> case whereis(getProcessName(Curr)) of
+killAll(NumOfProc,Curr,PCNUM) when Curr + 1 =:= NumOfProc -> CurrPRS = list_to_atom((integer_to_list(Curr) ++ integer_to_list(PCNUM))),
+                                                      case whereis(getProcessName(CurrPRS)) of
                                                          undefined -> do_nothing;
-                                                         PRS -> unregister(getProcessName(Curr)), exit(PRS,kill)
+                                                         PRS -> unregister(getProcessName(CurrPRS)), exit(PRS,kill)
                                                        end;
-killAll(NumOfProc,Curr) -> case whereis(getProcessName(Curr)) of
+killAll(NumOfProc,Curr,PCNUM) ->  CurrPRS = list_to_atom((integer_to_list(Curr) ++ integer_to_list(PCNUM))),
+                            case whereis(getProcessName(CurrPRS)) of
                              undefined -> do_nothing;
-                             PRS -> unregister(getProcessName(Curr)), exit(PRS,kill)
+                             PRS -> unregister(getProcessName(CurrPRS)), exit(PRS,kill)
                            end,
-                          killAll(NumOfProc,Curr+1).
+                          killAll(NumOfProc,Curr+1,PCNUM).

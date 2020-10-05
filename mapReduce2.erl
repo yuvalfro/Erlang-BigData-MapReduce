@@ -12,11 +12,11 @@
 -include("mapReduce1.erl").
 %% API
 
-start2([File]) ->
-  file:delete("test.ets"),
+start2(MainAuthor) ->
+  %file:delete("test.ets"),
   %ets:new(authors,[bag,named_table,public]),
-  mapReduce1:start1([File]),
-  MainAuthor = 'Anthony Hartley',   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
+  %mapReduce1:start1([File]),
+  %MainAuthor = 'Anthony Hartley',   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
   ets:new(etsL1,[set,named_table,public]),
   ets:new(etsL2,[set,named_table,public]),
   ets:new(etsL3,[set,named_table,public]),

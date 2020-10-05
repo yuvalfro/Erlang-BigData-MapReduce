@@ -61,8 +61,15 @@ init([]) ->
   {noreply, NewState :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #local_server_state{}} |
   {stop, Reason :: term(), NewState :: #local_server_state{}}).
-handle_call(File, From, State = #local_server_state{}) ->
-  mapReduce1:start1([File],self()),
+handle_call(File, _, State = #local_server_state{}) ->
+  case File of
+    "file1.csv" -> PCNUM = 1;
+    "file2.csv" -> PCNUM = 2;
+    "file3.csv" -> PCNUM = 3;
+    "file4.csv" -> PCNUM = 4
+  end,
+  io:format("PC~p start Map-Reduce1...~n",[PCNUM]),
+  mapReduce1:start1([File],self(),PCNUM),
   TableList = ets:tab2list(authors),
   io:format("Finish creating table...~n"),
   {reply, TableList, State}.
