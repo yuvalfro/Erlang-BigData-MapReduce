@@ -18,6 +18,8 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
+-include("mapReduce1.erl").
+
 -define(SERVER, ?MODULE).
 
 -record(local_server_state, {}).
@@ -33,7 +35,8 @@ start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 start(Name, File) ->
-  gen_server:start({local, Name}, local_server, [File]).
+  io:format("Start ~n"),
+  gen_server:start({local, Name}, local_server, {File}, []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -44,11 +47,9 @@ start(Name, File) ->
 -spec(init(Args :: term()) ->
   {ok, State :: #local_server_state{}} | {ok, State :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term()} | ignore).
-init([File]) ->
+init([]) ->
   ets:new(authors,[bag,named_table,public,{write_concurrency,true}]),
-  mapReduce1:start1([File]),
-  TableList = ets:tab2list(authors),
-  {TableList,done}.
+  {ok, #local_server_state{}}.
 
 %% @private
 %% @doc Handling call messages
@@ -60,8 +61,14 @@ init([File]) ->
   {noreply, NewState :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #local_server_state{}} |
   {stop, Reason :: term(), NewState :: #local_server_state{}}).
-handle_call(_Request, _From, State = #local_server_state{}) ->
-  {reply, ok, State}.
+handle_call(File, From, State = #local_server_state{}) ->
+  mapReduce1:start1([File],self()),
+  TableList = ets:tab2list(authors),
+  io:format("Finish creating table...~n"),
+  {reply, TableList, State}.
+
+%handle_call(_Request, _From, State = #local_server_state{}) ->
+ % {reply, ok, State}.
 
 %% @private
 %% @doc Handling cast messages

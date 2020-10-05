@@ -50,26 +50,33 @@ start_link() ->
 init([]) ->
   net_kernel:monitor_nodes(true),
   timer:sleep(200),
-  net_kernel:connect_node(?PC1),
+  Bool1 = net_kernel:connect_node(?PC1),
   timer:sleep(200),
-  net_kernel:connect_node(?PC2),
+  Bool2 = net_kernel:connect_node(?PC2),
   timer:sleep(200),
-  net_kernel:connect_node(?PC3),
+  Bool3 = net_kernel:connect_node(?PC3),
   timer:sleep(200),
-  net_kernel:connect_node(?PC4),
+  Bool4 = net_kernel:connect_node(?PC4),
   timer:sleep(200),
-
-  % File1 =
-  % File2 =
-  % File3 =
-  % File4 =
-  {TableList1,done}=rpc:call(?PC1,local_server,start,[?PC1,File1]),
-  {TableList2,done}=rpc:call(?PC2,local_server,start,[?PC2,File2]),
-  {TableList3,done}=rpc:call(?PC3,local_server,start,[?PC3,File3]),
-  {TableList4,done}=rpc:call(?PC4,local_server,start,[?PC4,File4]),
-  ListOfAll = TableList1 ++ TableList2 ++ TableList3 ++ TableList4,
-  ets:new(authors,[bag,named_table,public]),
-  mapReduce2:start2(["output_example.csv"]),
+  put(?PC1,?PC1),
+  put(?PC2,?PC2),
+  put(?PC3,?PC3),
+  put(?PC4,?PC4),
+   %File1 =
+   %File2 =
+   %File3 =
+   %File4 =
+  ListPC1 = gen_server:call({local_server,?PC1},"output_example.csv",infinity),
+  io:format("master got the table1...~n"),
+  ListPC2 = gen_server:call({local_server,?PC2},"output_example.csv",infinity),
+  io:format("master got the table2...~n"),
+  ListPC3 = gen_server:call({local_server,?PC3},"output_example.csv",infinity),
+  io:format("master got the table3...~n"),
+  ListPC4 = gen_server:call({local_server,?PC4},"output_example.csv",infinity),
+  io:format("master got the table4...~n"),
+  %ListOfAll = TableList1 ++ TableList2 ++ TableList3 ++ TableList4,
+  %ets:new(authors,[bag,named_table,public]),
+  %mapReduce2:start2(["output_example.csv"]),
   {ok, #gen_server_state{}}.
 
 %% @private
