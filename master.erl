@@ -77,9 +77,15 @@ init([]) ->
   ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListPC1), orddict:from_list(ListPC2)),
   ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(ListPC3)),
   ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(ListPC4)),
-  io:format("List of all ~p~n",[ListOfAll]),
-  %ets:new(authors,[bag,named_table,public]),
-  %mapReduce2:start2(["output_example.csv"]),
+  ets:new(authors,[bag,named_table,public]),
+  lists:foreach(fun(X) -> ets:insert(authors,{element(1,X),element(2,X)}) end, ListOfAll),
+  MainAuthor = 'Anthony Hartley',
+  io:format("master start Map-Reduce2...~n"),
+  {G,TabL1,TabL2,TabL3} = mapReduce2:start2(MainAuthor,self()),
+  io:format("The graph G has ~p edges~n",[digraph:no_edges(G)]),  % Print number of edges
+  io:format("Letters count in L1: ~p~n",[TabL1]),
+  io:format("Letters count in L2: ~p~n",[TabL2]),
+  io:format("Letters count in L3: ~p~n",[TabL3]),
   {ok, #gen_server_state{}}.
 
 %% @private
