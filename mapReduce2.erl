@@ -8,11 +8,11 @@
 %%%-------------------------------------------------------------------
 %-module(mapReduce2).
 -author("oem").
--export([start2/1]).
+-export([start2/2]).
 -include("mapReduce1.erl").
 %% API
 
-start2(MainAuthor) ->
+start2(MainAuthor,PC) ->
   %file:delete("test.ets"),
   %ets:new(authors,[bag,named_table,public]),
   %mapReduce1:start1([File]),
@@ -32,7 +32,7 @@ start2(MainAuthor) ->
   %% Foreach author insert to etsL1 and spawn findL2
   lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}),
                           Y = list_to_atom(X),
-                          register(getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor) end)) end,Authors),
+                          register(getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor,PC) end)) end,Authors),
   AllChildren = lists:map(fun(X) -> length(element(2,lists:nth(1,ets:lookup(authors,list_to_atom(X))))) end, Authors),
   mapReduce1:gather(lists:sum(AllChildren)), % Count all the children of authors to know when to finish
   TableList1 = ets:tab2list(etsL1),
@@ -48,19 +48,16 @@ start2(MainAuthor) ->
   insertETStoTable(TableList1,1),
   insertETStoTable(TableList2,2),
   insertETStoTable(TableList3,3),
-  %TabL1 = ets:tab2list(tableL1),
-  %TabL2 = ets:tab2list(tableL2),
-  %TabL3 = ets:tab2list(tableL3),
-  io:format("etsL1: ~p~n",[TableList1]),
-  io:format("length etsL1: ~p~n",[length(TableList1)]),
-  io:format("etsL2: ~p~n",[TableList2]),
-  io:format("length etsL2: ~p~n",[length(TableList2)]),
-  io:format("etsL3: ~p~n",[TableList3]),
-  io:format("length etsL2: ~p~n",[length(TableList3)]),
-  io:format("The graph G has ~p edges~n",[digraph:no_edges(G)]),  % Print number of edges
-  %io:format("Letter count L1: ~p~n",[TabL1]),
-  %io:format("Letter count L2: ~p~n",[TabL2]),
-  %io:format("Letter count L3: ~p~n",[TabL3]),
+  TabL1 = ets:tab2list(tableL1),
+  TabL2 = ets:tab2list(tableL2),
+  TabL3 = ets:tab2list(tableL3),
+  %io:format("etsL1: ~p~n",[TableList1]),
+  %io:format("length etsL1: ~p~n",[length(TableList1)]),
+  %io:format("etsL2: ~p~n",[TableList2]),
+  %io:format("length etsL2: ~p~n",[length(TableList2)]),
+  %io:format("etsL3: ~p~n",[TableList3]),
+  %io:format("length etsL2: ~p~n",[length(TableList3)]),
+  %io:format("The graph G has ~p edges~n",[digraph:no_edges(G)]),  % Print number of edges
   ets:delete(authors),
   ets:delete(etsL1),
   ets:delete(etsL2),
@@ -69,27 +66,27 @@ start2(MainAuthor) ->
   ets:delete(tableL2),
   ets:delete(tableL3),
   killAll(Authors),
-  unregister(mainPRS).
+  {G,TabL1,TabL2,TabL3}.
 
 
 %% NOTE: We want that an author will be in the highest level - if he suppose to be in L1 and L2, he will be in L1
 %% We activate gather function on the number of processes from L1. In findL2, if true send a message and count down in the gather
 %% If false, create another process, and wait for him to send message after finish the function findL3, and only then count down the gather
 
-findL2(A,MainAuthor) ->
-  Values = ets:lookup(authors,list_to_atom(A)),
+findL2(A,MainAuthor,PC) ->
+  Values = ets:lookup(authors, list_to_atom(A)),
   Authors = element(2,lists:nth(1,Values)),
   lists:foreach(fun(X) -> MainAuthorCheck = list_to_atom(X) == MainAuthor,
                          case MainAuthorCheck or ets:member(etsL1,X) of  % Check if the author in etsL1 or he is the main author
                             % The author in L1, don't insert again
-                            true -> mainPRS ! {"Finish"};
+                            true -> PC ! {"Finish"};
                             %% The author not in L1, insert to etsL2 and spawn findL3
                             false -> ets:insert(etsL2,{X,A}),
                                      CurrPRS = list_to_atom(X ++ integer_to_list(os:system_time(microsecond))),
-                                     register(getProcessName(CurrPRS),spawn(fun() -> findL3(X,MainAuthor) end)) end
+                                     register(getProcessName(CurrPRS),spawn(fun() -> findL3(X,MainAuthor,PC) end)) end
                           end, Authors).
 
-findL3(A,MainAuthor) ->
+findL3(A,MainAuthor,PC) ->
   Values = ets:lookup(authors,list_to_atom(A)),
   Authors = element(2,lists:nth(1,Values)),
   lists:foreach(fun(X) -> MainAuthorCheck = list_to_atom(X) == MainAuthor,
@@ -99,7 +96,7 @@ findL3(A,MainAuthor) ->
                             %% The author not in L1, insert to etsL2 and spawn findL3
                             false -> ets:insert(etsL3,{X,A}) end
                           end, Authors),
-  mainPRS ! {"Finish"}.
+  PC ! {"Finish"}.
 
 %% Count for each level the name of authors that the family name starts in each letter
 insertETStoTable([],_) -> do_nothing;
