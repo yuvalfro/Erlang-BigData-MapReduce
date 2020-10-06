@@ -6,10 +6,10 @@
 %%% @end
 %%% Created : 30. Sep 2020 12:23
 %%%-------------------------------------------------------------------
-%-module(mapReduce2).
+-module(mapReduce2).
 -author("oem").
 -export([start2/2]).
--include("mapReduce1.erl").
+%-include("mapReduce1.erl").
 %% API
 
 start2(MainAuthor,PC) ->
@@ -32,7 +32,7 @@ start2(MainAuthor,PC) ->
   %% Foreach author insert to etsL1 and spawn findL2
   lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}),
                           Y = list_to_atom(X),
-                          register(getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor,PC) end)) end,Authors),
+                          register(mapReduce1:getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor,PC) end)) end,Authors),
   AllChildren = lists:map(fun(X) -> length(element(2,lists:nth(1,ets:lookup(authors,list_to_atom(X))))) end, Authors),
   mapReduce1:gather(lists:sum(AllChildren)), % Count all the children of authors to know when to finish
   TableList1 = ets:tab2list(etsL1),
@@ -51,14 +51,7 @@ start2(MainAuthor,PC) ->
   TabL1 = ets:tab2list(tableL1),
   TabL2 = ets:tab2list(tableL2),
   TabL3 = ets:tab2list(tableL3),
-  %io:format("etsL1: ~p~n",[TableList1]),
-  %io:format("length etsL1: ~p~n",[length(TableList1)]),
-  %io:format("etsL2: ~p~n",[TableList2]),
-  %io:format("length etsL2: ~p~n",[length(TableList2)]),
-  %io:format("etsL3: ~p~n",[TableList3]),
-  %io:format("length etsL2: ~p~n",[length(TableList3)]),
-  %io:format("The graph G has ~p edges~n",[digraph:no_edges(G)]),  % Print number of edges
-  ets:delete(authors),
+  %ets:delete(authors),
   ets:delete(etsL1),
   ets:delete(etsL2),
   ets:delete(etsL3),
@@ -83,7 +76,7 @@ findL2(A,MainAuthor,PC) ->
                             %% The author not in L1, insert to etsL2 and spawn findL3
                             false -> ets:insert(etsL2,{X,A}),
                                      CurrPRS = list_to_atom(X ++ integer_to_list(os:system_time(microsecond))),
-                                     register(getProcessName(CurrPRS),spawn(fun() -> findL3(X,MainAuthor,PC) end)) end
+                                     register(mapReduce1:getProcessName(CurrPRS),spawn(fun() -> findL3(X,MainAuthor,PC) end)) end
                           end, Authors).
 
 findL3(A,MainAuthor,PC) ->
@@ -125,15 +118,16 @@ addVertices(G,ListETS) ->
 addEdges(_,[]) -> do_nothing;
 addEdges(G,[H|T]) ->
   digraph:add_edge(G,element(1,H),element(2,H)),
+  graphviz:add_edge("G",element(2,H),element(1,H)),
   addEdges(G,T).
 
 %% Kill all processes
 killAll([]) -> do_nothing;
 killAll([H|T]) ->
   X = list_to_atom(H),
-  case whereis(getProcessName(X)) of
+  case whereis(mapReduce1:getProcessName(X)) of
        undefined -> do_nothing;
-       PRS -> unregister(getProcessName(X)),exit(PRS,kill)
+       PRS -> unregister(mapReduce1:getProcessName(X)),exit(PRS,kill)
   end,
   killAll(T).
 

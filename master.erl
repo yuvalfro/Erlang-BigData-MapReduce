@@ -18,7 +18,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
--include("mapReduce2.erl").
+%-include(["mapReduce2.erl","graphviz.erl"]).
 
 -define(SERVER, ?MODULE).
 -define(PC1, 'PC1@127.0.0.1').
@@ -80,12 +80,16 @@ init([]) ->
   ets:new(authors,[bag,named_table,public]),
   lists:foreach(fun(X) -> ets:insert(authors,{element(1,X),element(2,X)}) end, ListOfAll),
   MainAuthor = 'Anthony Hartley',
+  graphviz:graph("G"),
   io:format("master start Map-Reduce2...~n"),
   {G,TabL1,TabL2,TabL3} = mapReduce2:start2(MainAuthor,self()),
   io:format("The graph G has ~p edges~n",[digraph:no_edges(G)]),  % Print number of edges
   io:format("Letters count in L1: ~p~n",[TabL1]),
   io:format("Letters count in L2: ~p~n",[TabL2]),
   io:format("Letters count in L3: ~p~n",[TabL3]),
+  graphviz:to_file("AuthorsTree.png","png"),
+  graphviz:delete(),
+  %ets:delete(authors),
   {ok, #gen_server_state{}}.
 
 %% @private

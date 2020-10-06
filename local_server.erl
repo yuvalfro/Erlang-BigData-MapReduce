@@ -18,7 +18,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
--include("mapReduce1.erl").
+%-include("mapReduce1.erl").
 
 -define(SERVER, ?MODULE).
 
@@ -72,6 +72,7 @@ handle_call(File, _, State = #local_server_state{}) ->
   mapReduce1:start1([File],self(),PCNUM),
   TableList = ets:tab2list(authors),
   io:format("Finish creating table...~n"),
+  %ets:delete(authors),
   {reply, TableList, State}.
 
 %handle_call(_Request, _From, State = #local_server_state{}) ->

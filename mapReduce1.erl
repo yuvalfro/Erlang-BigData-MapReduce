@@ -6,9 +6,9 @@
 %%% @end
 %%% Created : 27. Sep 2020 14:58
 %%%-------------------------------------------------------------------
-%-module('mapReduce1').
+-module('mapReduce1').
 -author("oem").
--export([start1/3,gather/1]).
+-export([start1/3,gather/1,getProcessName/1]).
 -include("parse_csv.erl").
 %% API
 
