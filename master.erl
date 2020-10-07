@@ -80,16 +80,16 @@ init([]) ->
   ets:new(authors,[bag,named_table,public]),
   lists:foreach(fun(X) -> ets:insert(authors,{element(1,X),element(2,X)}) end, ListOfAll),
   MainAuthor = 'Anthony Hartley',
-  graphviz:graph("G"),
   io:format("master start Map-Reduce2...~n"),
   {G,TabL1,TabL2,TabL3} = mapReduce2:start2(MainAuthor,self()),
-  io:format("The graph G has ~p edges~n",[digraph:no_edges(G)]),  % Print number of edges
-  io:format("Letters count in L1: ~p~n",[TabL1]),
-  io:format("Letters count in L2: ~p~n",[TabL2]),
-  io:format("Letters count in L3: ~p~n",[TabL3]),
-  graphviz:to_file("AuthorsTree.png","png"),
-  graphviz:delete(),
-  %ets:delete(authors),
+  %io:format("Letters count in L1: ~p~n",[TabL1]),
+  %io:format("Letters count in L2: ~p~n",[TabL2]),
+  %io:format("Letters count in L3: ~p~n",[TabL3]),
+  io:format("master start create the graph...~n"),
+  digraphTographviz(G),
+  mapReduce1:gather(1),
+  ets:delete(authors),
+  io:format("master finish...~n"),
   {ok, #gen_server_state{}}.
 
 %% @private
@@ -144,3 +144,16 @@ code_change(_OldVsn, State = #gen_server_state{}, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+digraphTographviz(G) ->
+  graphviz:graph("G",self()),
+  EdgeList = getEdgesList(G),
+  lists:foreach(fun(X) -> graphviz:add_edge(element(3,X),element(2,X)) end, EdgeList),
+  mapReduce1:gather(length(EdgeList)),
+  graphviz:to_file("AuthorsTree.png", "png"),
+  graphviz:delete(),
+  io:format("graphviz finish~n").
+
+getEdgesList(G)->
+  B=digraph:edges(G),
+  [digraph:edge(G,E) || E <- B].

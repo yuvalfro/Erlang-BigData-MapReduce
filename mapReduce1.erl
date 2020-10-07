@@ -9,7 +9,7 @@
 -module('mapReduce1').
 -author("oem").
 -export([start1/3,gather/1,getProcessName/1]).
--include("parse_csv.erl").
+%-include("parse_csv.erl").
 %% API
 
 start1([File],PC,PCNUM) ->
@@ -33,19 +33,19 @@ start1([File],PC,PCNUM) ->
     NumOfProc -> reducer(keys());
     _ -> do_nothing
   end,
-  {ok,WriteFile} = file:open("test.ets",[write]),         % Create result file
-  TableList = ets:tab2list(authors),
-  write_text(TableList,WriteFile),
+  %{ok,WriteFile} = file:open("test.ets",[write]),         % Create result file
+  %TableList = ets:tab2list(authors),
+  %write_text(TableList,WriteFile),
  % ets:delete(authors),
   ets:delete(keycounter),
   killAll(NumOfProc,0,PCNUM).
   %unregister(mainPRS).
 
 %% Write to etsRes_204265110.ets
-write_text([],_) -> ok;
-write_text([{K,V}|T],WriteFile) ->
-  io:format(WriteFile,"~s ~s~n",[K,V]),
-  write_text(T,WriteFile).
+%write_text([],_) -> ok;
+%write_text([{K,V}|T],WriteFile) ->
+%  io:format(WriteFile,"~s ~s~n",[K,V]),
+%  write_text(T,WriteFile).
 
 %% Finish creating all the processes
 createProcceses(NumOfProc, RowsPerProc, CSV, Curr, Extra, PC, PCNUM) when Curr + 1 =:= NumOfProc  ->               % Create the last process - process number NumOfProc

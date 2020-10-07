@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0,start/2]).
+-export([start_link/0,start/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -34,9 +34,10 @@
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-start(Name, File) ->
+start(Name) ->
   io:format("Start ~n"),
-  gen_server:start({local, Name}, local_server, {File}, []).
+  ets:delete(authors),
+  gen_server:start({local, Name}, local_server, [], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -48,7 +49,6 @@ start(Name, File) ->
   {ok, State :: #local_server_state{}} | {ok, State :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term()} | ignore).
 init([]) ->
-  ets:new(authors,[bag,named_table,public,{write_concurrency,true}]),
   {ok, #local_server_state{}}.
 
 %% @private
@@ -68,11 +68,12 @@ handle_call(File, _, State = #local_server_state{}) ->
     "file3.csv" -> PCNUM = 3;
     "file4.csv" -> PCNUM = 4
   end,
+  ets:new(authors,[bag,named_table,public]),
   io:format("PC~p start Map-Reduce1...~n",[PCNUM]),
   mapReduce1:start1([File],self(),PCNUM),
   TableList = ets:tab2list(authors),
   io:format("Finish creating table...~n"),
-  %ets:delete(authors),
+  ets:delete(authors),
   {reply, TableList, State}.
 
 %handle_call(_Request, _From, State = #local_server_state{}) ->

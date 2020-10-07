@@ -118,7 +118,6 @@ addVertices(G,ListETS) ->
 addEdges(_,[]) -> do_nothing;
 addEdges(G,[H|T]) ->
   digraph:add_edge(G,element(1,H),element(2,H)),
-  graphviz:add_edge("G",element(2,H),element(1,H)),
   addEdges(G,T).
 
 %% Kill all processes
