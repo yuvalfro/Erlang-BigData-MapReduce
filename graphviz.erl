@@ -33,7 +33,7 @@ graph_server(Graph,PC) ->
          Pid ! {value, Graph}, 
          graph_server(Graph,PC);
 
-      stop -> PC ! {"Finish"},true
+      stop -> PC ! {"Finish"},unregister(graph_server),true
    end.
 
 % -- Methods
@@ -52,7 +52,7 @@ add_node(Graph, Id) ->
 
 add_edge(Graph, NodeOne, NodeTwo ,PC) ->
    {GraphId, Type, GraphOptions, Nodes, Edges} = Graph,
-   io:format("Add edge ~s -> ~s to graph ~s !~n", [NodeOne, NodeTwo, GraphId]),
+   %io:format("Add edge ~s -> ~s to graph ~s !~n", [NodeOne, NodeTwo, GraphId]),
    PC ! {"Finish"},
    {GraphId, Type, GraphOptions, Nodes, Edges ++ [{NodeOne, NodeTwo}]}.
 
