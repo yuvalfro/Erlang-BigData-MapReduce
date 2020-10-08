@@ -18,7 +18,6 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
-%-include(["mapReduce2.erl","graphviz.erl"]).
 
 -define(SERVER, ?MODULE).
 -define(PC1, 'PC1@127.0.0.1').
@@ -79,7 +78,7 @@ init([]) ->
   ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(ListPC4)),
   ets:new(authors,[bag,named_table,public]),
   lists:foreach(fun(X) -> ets:insert(authors,{element(1,X),element(2,X)}) end, ListOfAll),
-  MainAuthor = 'Anthony Hartley',
+  MainAuthor = 'Anthony Hartley',   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
   io:format("master start Map-Reduce2...~n"),
   {G,TabL1,TabL2,TabL3} = mapReduce2:start2(MainAuthor,self()),
   %io:format("Letters count in L1: ~p~n",[TabL1]),
@@ -146,13 +145,19 @@ code_change(_OldVsn, State = #gen_server_state{}, _Extra) ->
 %%%===================================================================
 
 digraphTographviz(G) ->
+  file:delete("AuthorsTree.png"),
   graphviz:graph("G",self()),
   EdgeList = getEdgesList(G),
-  lists:foreach(fun(X) -> graphviz:add_edge(element(3,X),element(2,X)) end, EdgeList),
+  lists:foreach(fun(X) -> FirstName1 = lists:nth(1,string:tokens(element(3,X),[$ ])),                        % First name of author
+                          FirstLetFam1= lists:sublist(lists:nth(2,string:tokens(element(3,X),[$ ])),1,1),    % First letter of family name
+                          Father = FirstName1 ++ "_" ++ FirstLetFam1,
+                          FirstName2 = lists:nth(1,string:tokens(element(2,X),[$ ])),
+                          FirstLetFam2= lists:sublist(lists:nth(2,string:tokens(element(2,X),[$ ])),1,1),
+                          Son = FirstName2 ++ "_" ++ FirstLetFam2,
+                          graphviz:add_edge(Father,Son) end, EdgeList),
   mapReduce1:gather(length(EdgeList)),
   graphviz:to_file("AuthorsTree.png", "png"),
-  graphviz:delete(),
-  io:format("graphviz finish~n").
+  graphviz:delete().
 
 getEdgesList(G)->
   B=digraph:edges(G),

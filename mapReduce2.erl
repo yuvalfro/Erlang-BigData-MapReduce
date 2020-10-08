@@ -13,10 +13,6 @@
 %% API
 
 start2(MainAuthor,PC) ->
-  %file:delete("test.ets"),
-  %ets:new(authors,[bag,named_table,public]),
-  %mapReduce1:start1([File]),
-  %MainAuthor = 'Anthony Hartley',   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
   ets:new(etsL1,[set,named_table,public]),
   ets:new(etsL2,[set,named_table,public]),
   ets:new(etsL3,[set,named_table,public]),
@@ -30,7 +26,7 @@ start2(MainAuthor,PC) ->
   ValuesMain = ets:lookup(authors,MainAuthor),
   Authors = element(2,lists:nth(1,ValuesMain)),   %% ADD TRY CATCH FOR EMPTY LIST
   %% Foreach author insert to etsL1 and spawn findL2
-  lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}),
+  lists:foreach(fun(X) -> ets:insert(etsL1,{X,atom_to_list(MainAuthor)}),
                           Y = list_to_atom(X),
                           register(mapReduce1:getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor,PC) end)) end,Authors),
   AllChildren = lists:map(fun(X) -> length(element(2,lists:nth(1,ets:lookup(authors,list_to_atom(X))))) end, Authors),
@@ -38,7 +34,7 @@ start2(MainAuthor,PC) ->
   TableList1 = ets:tab2list(etsL1),
   TableList2 = ets:tab2list(etsL2),
   TableList3 = ets:tab2list(etsL3),
-  digraph:add_vertex(G,MainAuthor), % Add main author as vertex
+  digraph:add_vertex(G,atom_to_list(MainAuthor)), % Add main author as vertex
   addVertices(G, TableList1),       % Add all the authors in level L1 as vertex
   addVertices(G, TableList2),       % Add all the authors in level L2 as vertex
   addVertices(G, TableList3),       % Add all the authors in level L3 as vertex
@@ -51,7 +47,6 @@ start2(MainAuthor,PC) ->
   TabL1 = ets:tab2list(tableL1),
   TabL2 = ets:tab2list(tableL2),
   TabL3 = ets:tab2list(tableL3),
-  %ets:delete(authors),
   ets:delete(etsL1),
   ets:delete(etsL2),
   ets:delete(etsL3),

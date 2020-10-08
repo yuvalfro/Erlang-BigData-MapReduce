@@ -13,7 +13,6 @@
 %% API
 
 start1([File],PC,PCNUM) ->
-  %register(mainPRS,self()),
   CSV = parse_csv:main([File]),
   N = length(CSV),
   NumOfProc = 200,
@@ -36,10 +35,8 @@ start1([File],PC,PCNUM) ->
   %{ok,WriteFile} = file:open("test.ets",[write]),         % Create result file
   %TableList = ets:tab2list(authors),
   %write_text(TableList,WriteFile),
- % ets:delete(authors),
   ets:delete(keycounter),
   killAll(NumOfProc,0,PCNUM).
-  %unregister(mainPRS).
 
 %% Write to etsRes_204265110.ets
 %write_text([],_) -> ok;
