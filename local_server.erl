@@ -17,7 +17,7 @@
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
-
+-include_lib("stdlib/include/qlc.hrl").
 %-include("mapReduce1.erl").
 
 -define(SERVER, ?MODULE).
@@ -68,12 +68,17 @@ handle_call(File, _, State = #local_server_state{}) ->
     "file3.csv" -> PCNUM = 3;
     "file4.csv" -> PCNUM = 4
   end,
-  ets:new(authors,[bag,named_table,public]),
+  %ets:new(authors,[bag,named_table,public]),
+  dets:open_file(authors, [{type, bag}]),
   io:format("PC~p start Map-Reduce1...~n",[PCNUM]),
   mapReduce1:start1([File],self(),PCNUM),
-  TableList = ets:tab2list(authors),
+  %TableList = ets:tab2list(authors),
+  QH3 = qlc:q([{X,Y} || {X,Y} <- dets:table(authors), is_list(Y)]),
+  TableList = qlc:e(QH3),
   io:format("Finish creating table...~n"),
-  ets:delete(authors),
+  %ets:delete(authors),
+  dets:delete_all_objects(authors),
+  dets:close(authors),
   {reply, TableList, State}.
 
 %handle_call(_Request, _From, State = #local_server_state{}) ->
