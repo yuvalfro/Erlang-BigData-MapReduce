@@ -18,9 +18,9 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 -include_lib("stdlib/include/qlc.hrl").
-%-include("mapReduce1.erl").
 
 -define(SERVER, ?MODULE).
+-define(Master, 'master@127.0.0.1').
 
 -record(local_server_state, {}).
 
@@ -49,6 +49,14 @@ start(Name) ->
   {ok, State :: #local_server_state{}} | {ok, State :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term()} | ignore).
 init([]) ->
+  file:delete("authors1"),
+  file:delete("authors2"),
+  file:delete("authors3"),
+  file:delete("authors4"),
+  file:delete("keycounter1"),
+  file:delete("keycounter2"),
+  file:delete("keycounter3"),
+  file:delete("keycounter4"),
   {ok, #local_server_state{}}.
 
 %% @private
@@ -61,24 +69,33 @@ init([]) ->
   {noreply, NewState :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #local_server_state{}} |
   {stop, Reason :: term(), NewState :: #local_server_state{}}).
-handle_call(File, _, State = #local_server_state{}) ->
+handle_call([File,PC], _, State = #local_server_state{}) ->
   case File of
-    "file1.csv" -> PCNUM = 1;
-    "file2.csv" -> PCNUM = 2;
-    "file3.csv" -> PCNUM = 3;
-    "file4.csv" -> PCNUM = 4
+    "file1.csv" -> PCNUM = 1, Table = authors1;
+    "file2.csv" -> PCNUM = 2, Table = authors2;
+    "file3.csv" -> PCNUM = 3, Table = authors3;
+    "file4.csv" -> PCNUM = 4, Table = authors4
   end,
   %ets:new(authors,[bag,named_table,public]),
-  dets:open_file(authors, [{type, bag}]),
+  dets:open_file(Table, [{type, bag}]),
+  dets:safe_fixtable(Table, true),
   io:format("PC~p start Map-Reduce1...~n",[PCNUM]),
   mapReduce1:start1([File],self(),PCNUM),
   %TableList = ets:tab2list(authors),
-  QH3 = qlc:q([{X,Y} || {X,Y} <- dets:table(authors), is_list(Y)]),
+  QH3 = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
   TableList = qlc:e(QH3),
-  io:format("Finish creating table...~n"),
   %ets:delete(authors),
-  dets:delete_all_objects(authors),
-  dets:close(authors),
+  %dets:delete_all_objects(authors),
+  %dets:close(authors),
+  case File of
+    "file1.csv" -> dets:delete_all_objects(authors1), dets:close(authors1), Send = "PC1";
+    "file2.csv" -> dets:delete_all_objects(authors2), dets:close(authors2), Send = "PC2";
+    "file3.csv" -> dets:delete_all_objects(authors3), dets:close(authors3), Send = "PC3";
+    "file4.csv" -> dets:delete_all_objects(authors4), dets:close(authors4), Send = "PC4"
+  end,
+  gen_server:cast({global,master},Send),
+  PC ! {"Finish"},
+  io:format("Finish creating table...~n"),
   {reply, TableList, State}.
 
 %handle_call(_Request, _From, State = #local_server_state{}) ->

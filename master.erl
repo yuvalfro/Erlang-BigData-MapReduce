@@ -47,6 +47,7 @@ start_link() ->
   {ok, State :: #gen_server_state{}} | {ok, State :: #gen_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term()} | ignore).
 init([]) ->
+  file:delete("AuthorsTree.png"),
   net_kernel:monitor_nodes(true),
   timer:sleep(200),
   net_kernel:connect_node(?PC1),
@@ -65,14 +66,18 @@ init([]) ->
   File2 = "file2.csv",
   File3 = "file3.csv",
   File4 = "file4.csv",
-  ListPC1 = spawn(fun() -> gen_server:call({local_server,?PC1},File1,infinity) end),
-  io:format("master got table from PC1...~n"),
-  ListPC2 = spawn(fun() -> gen_server:call({local_server,?PC2},File2,infinity) end),
-  io:format("master got table from PC2...~n"),
-  ListPC3 = spawn(fun() -> gen_server:call({local_server,?PC3},File3,infinity) end),
-  io:format("master got table from PC3...~n"),
-  ListPC4 = spawn(fun() -> gen_server:call({local_server,?PC4},File4,infinity) end),
-  io:format("master got table from PC4...~n"),
+  Self = self(),
+  ListPC1 = spawn(fun() -> gen_server:call({local_server,?PC1},[File1,Self],infinity) end),
+  ListPC2 = spawn(fun() -> gen_server:call({local_server,?PC2},[File2,Self],infinity) end),
+  ListPC3 = spawn(fun() -> gen_server:call({local_server,?PC3},[File3,Self],infinity) end),
+  ListPC4 = spawn(fun() -> gen_server:call({local_server,?PC4},[File4,Self],infinity) end),
+  %io:format("before gather~n"),
+  mapReduce1:gather(3),
+  %io:format("after gather~n"),
+  %ListPC1 = gen_server:call({local_server,?PC1},[File1,self()],infinity),
+  %ListPC2 = gen_server:call({local_server,?PC2},[File2,self()],infinity),
+  %ListPC3 = gen_server:call({local_server,?PC3},[File3,self()],infinity),
+  %ListPC4 = gen_server:call({local_server,?PC4},[File4,self()],infinity),
   ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListPC1), orddict:from_list(ListPC2)),
   ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(ListPC3)),
   ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(ListPC4)),
@@ -111,6 +116,7 @@ handle_call(_Request, _From, State = #gen_server_state{}) ->
   {noreply, NewState :: #gen_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #gen_server_state{}}).
 handle_cast(_Request, State = #gen_server_state{}) ->
+  io:format("master got table from ~p...~n",[_Request]),
   {noreply, State}.
 
 %% @private
@@ -145,7 +151,6 @@ code_change(_OldVsn, State = #gen_server_state{}, _Extra) ->
 %%%===================================================================
 
 digraphTographviz(G) ->
-  file:delete("AuthorsTree.png"),
   graphviz:graph("G",self()),
   EdgeList = getEdgesList(G),
   lists:foreach(fun(X) -> FirstName1 = lists:nth(1,string:tokens(element(3,X),[$ ])),                        % First name of author
