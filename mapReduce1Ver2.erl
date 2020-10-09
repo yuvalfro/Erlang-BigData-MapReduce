@@ -21,7 +21,6 @@ startMR(File,PC,PCNUM,MainAuthor) ->
     4 -> Table = authors4
   end,
   dets:open_file(Table, [{type, bag}]),
-  %MainAuthor = "Pierangela Samarati",
   CSV = parse_csv:main([File]),
   % Create a list of all articles that main author appear in
   ListofMA = [Authors || Authors <- CSV, lists:member(MainAuthor,string:tokens(element(2,Authors),[$|]))],
