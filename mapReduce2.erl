@@ -23,10 +23,10 @@ start2(MainAuthor,PC) ->
   ets:insert(tableL1,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
   ets:insert(tableL2,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
   ets:insert(tableL3,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
-  ValuesMain = ets:lookup(authors,MainAuthor),
+  ValuesMain = ets:lookup(authors,list_to_atom(MainAuthor)),
   Authors = element(2,lists:nth(1,ValuesMain)),   %% ADD TRY CATCH FOR EMPTY LIST
   %% Foreach author insert to etsL1 and spawn findL2
-  lists:foreach(fun(X) -> ets:insert(etsL1,{X,atom_to_list(MainAuthor)}),
+  lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}),
                           Y = list_to_atom(X),
                           register(mapReduce1:getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor,PC) end)) end,Authors),
   AllChildren = lists:map(fun(X) -> length(element(2,lists:nth(1,ets:lookup(authors,list_to_atom(X))))) end, Authors),
@@ -34,7 +34,7 @@ start2(MainAuthor,PC) ->
   TableList1 = ets:tab2list(etsL1),
   TableList2 = ets:tab2list(etsL2),
   TableList3 = ets:tab2list(etsL3),
-  digraph:add_vertex(G,atom_to_list(MainAuthor)), % Add main author as vertex
+  digraph:add_vertex(G,MainAuthor), % Add main author as vertex
   addVertices(G, TableList1),       % Add all the authors in level L1 as vertex
   addVertices(G, TableList2),       % Add all the authors in level L2 as vertex
   addVertices(G, TableList3),       % Add all the authors in level L3 as vertex

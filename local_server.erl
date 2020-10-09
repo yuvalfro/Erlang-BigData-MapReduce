@@ -85,7 +85,6 @@ handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
   %TableList = ets:tab2list(authors),
   QH = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
   TableList = qlc:e(QH),
-  io:format("table list ~p~n",[TableList]),
   %ets:delete(authors),
   %dets:delete_all_objects(authors),
   %dets:close(authors),

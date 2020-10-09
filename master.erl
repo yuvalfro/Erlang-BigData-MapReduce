@@ -72,22 +72,15 @@ init([]) ->
   spawn(fun() -> gen_server:call({local_server,?PC2},[File2,Self,MainAuthor],infinity) end),
   spawn(fun() -> gen_server:call({local_server,?PC3},[File3,Self,MainAuthor],infinity) end),
   spawn(fun() -> gen_server:call({local_server,?PC4},[File4,Self,MainAuthor],infinity) end),
-  List = gatherMaster(4),
-  io:format("list ~p~n",[List]),
-  List1 = tuple_to_list(lists:nth(1,List)),
-  io:format("list1 ~p~n",[List1]),
-  List2 = tuple_to_list(lists:nth(2,List)),
-  io:format("list2 ~p~n",[List2]),
-  List3 = tuple_to_list(lists:nth(3,List)),
-  io:format("list3 ~p~n",[List3]),
-  List4 = tuple_to_list(lists:nth(4,List)),
-  io:format("list4 ~p~n",[List4]),
-  %ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(List1), orddict:from_list(List2)),
-  %ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(List3)),
-  %ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(List4)),
-  ListOfAll1 = merge(List1,List2),
-  ListOfAll2 = merge(ListOfAll1,List3),
-  ListOfAll = merge(ListOfAll2,List4),
+  Map = maps:new(),
+  AuthorsMap = gatherMaster(4,Map),
+  List1 = maps:get("PC1",AuthorsMap),
+  List2 = maps:get("PC2",AuthorsMap),
+  List3 = maps:get("PC3",AuthorsMap),
+  List4 = maps:get("PC4",AuthorsMap),
+  ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(List1), orddict:from_list(List2)),
+  ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(List3)),
+  ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(List4)),
   ets:new(authors,[bag,named_table,public]),
   lists:foreach(fun(X) -> ets:insert(authors,{element(1,X),element(2,X)}) end, ListOfAll),
   io:format("master start Map-Reduce2...~n"),
@@ -175,15 +168,12 @@ getEdgesList(G)->
   B=digraph:edges(G),
   [digraph:edge(G,E) || E <- B].
 
-merge(In1,In2) ->
-  Combined = In1 ++ In2,
-  Fun      = fun(Key) -> {Key,proplists:get_all_values(Key,Combined)} end,
-  lists:map(Fun,proplists:get_keys(Combined)).
-
-gatherMaster(0) -> [];
-gatherMaster(N) ->
+%% Gather function - wait until all processes finish and gather the answers to a map
+gatherMaster(0,Map) -> Map;
+gatherMaster(N,Map) ->
   receive
     {TableList,Send} ->
       io:format("master got table from ~p...~n",[Send]),
-      TableList ++ gatherMaster(N-1)
+      NewMap = maps:put(Send,TableList,Map),
+      gatherMaster(N-1,NewMap)
   end.

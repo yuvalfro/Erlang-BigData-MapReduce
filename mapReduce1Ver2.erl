@@ -14,9 +14,6 @@
 -include_lib("stdlib/include/qlc.hrl").
 
 startMR(File,PC,PCNUM,MainAuthor) ->
-  %PC = self(),
-  %file:delete("authors1"),
-  %PCNUM = 1,
   case PCNUM of
     1 -> Table = authors1;
     2 -> Table = authors2;
@@ -39,9 +36,6 @@ startMR(File,PC,PCNUM,MainAuthor) ->
   NumOfProc = length(ListNoMA),
   createProcceses(NumOfProc,CSV,1,PC,Table,ListNoMA),
   gather(NumOfProc).
-  %QH3 = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
-  %TableList = qlc:e(QH3),
-  %TableList.
 
 %% Finish creating all the processes
 createProcceses(NumOfProc, CSV, Curr, PC, Table,ListNoMA) when Curr =:= NumOfProc  ->
