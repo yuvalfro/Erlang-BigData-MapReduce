@@ -48,6 +48,10 @@ start_link() ->
   {stop, Reason :: term()} | ignore).
 init([]) ->
   file:delete("AuthorsTree.png"),
+  file:delete("authors1"),
+  file:delete("authors2"),
+  file:delete("authors3"),
+  file:delete("authors4"),
   net_kernel:monitor_nodes(true),
   timer:sleep(200),
   net_kernel:connect_node(?PC1),
@@ -74,10 +78,22 @@ init([]) ->
   spawn(fun() -> gen_server:call({local_server,?PC4},[File4,Self,MainAuthor],infinity) end),
   Map = maps:new(),
   AuthorsMap = gatherMaster(4,Map),
-  List1 = maps:get("PC1",AuthorsMap),
-  List2 = maps:get("PC2",AuthorsMap),
-  List3 = maps:get("PC3",AuthorsMap),
-  List4 = maps:get("PC4",AuthorsMap),
+  case maps:get("PC1",AuthorsMap) of
+    nodedown -> List1 = [];%helpme(MainAuthor,File1,pc1);
+    Authors1 -> List1 = Authors1
+  end,
+  case maps:get("PC2",AuthorsMap) of
+    nodedown -> List2 = [];
+    Authors2 -> List2 = Authors2
+  end,
+  case maps:get("PC3",AuthorsMap) of
+    nodedown -> List3 = [];
+    Authors3 -> List3 = Authors3
+  end,
+  case maps:get("PC4",AuthorsMap) of
+    nodedown -> List4 = [];
+    Authors4 -> List4 = Authors4
+  end,
   ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(List1), orddict:from_list(List2)),
   ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(List3)),
   ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(List4)),
@@ -172,10 +188,55 @@ getEdgesList(G)->
 gatherMaster(0,Map) -> Map;
 gatherMaster(N,Map) ->
   receive
-    {nodeup,_} -> do_nothing;
-    {nodedown,_} -> do_nothing;
+    % nodeup message - keep waiting
+    {nodeup,_} -> gatherMaster(N,Map);
+    % nodedown message - insert 'nodedown' into map and continue
+    {nodedown,LocalServer} ->
+      Server = lists:nth(1,string:tokens(atom_to_list(LocalServer),[$@])),
+      io:format("Node ~p is down! ~n",[Server]),
+      NewMap = maps:put(Server,nodedown,Map),
+      gatherMaster(N-1,NewMap);
+    % Tablelist message - insert tablelist into map and continue
     {TableList,Send} ->
       io:format("master got table from ~p...~n",[Send]),
       NewMap = maps:put(Send,TableList,Map),
       gatherMaster(N-1,NewMap)
   end.
+
+%% Help function - if one of the nodes down, another node will process his data
+helpme(MainAuthor,File,PC) ->
+  case PC of
+    pc1 -> OtherPC = {?PC2,?PC3,?PC4}, file:delete(authors1);
+    pc2 -> OtherPC = {?PC1,?PC3,?PC4}, file:delete(authors2);
+    pc3 -> OtherPC = {?PC1,?PC2,?PC4}, file:delete(authors3);
+    pc4 -> OtherPC = {?PC1,?PC2,?PC3}, file:delete(authors4)
+  end,
+  FirstPC = element(1,OtherPC),
+  SecondPC = element(2,OtherPC),
+  ThirdPC = element(3,OtherPC),
+  Self = self(),
+  FirstAlive = net_kernel:connect_node(FirstPC),
+  SecondAlive = net_kernel:connect_node(SecondPC),
+  ThirdAlive = net_kernel:connect_node(ThirdPC),
+  List = [],
+  case FirstAlive of
+    false -> CheckNextPC3 = true;
+    true -> List = gen_server:call({local_server,FirstPC},[File,Self,MainAuthor],infinity), CheckNextPC3 = false
+  end,
+  case CheckNextPC3 of
+    false -> do_nothing;
+    true ->
+      case SecondAlive of
+        false -> CheckNextPC4 = true;
+        true -> List = gen_server:call({local_server,SecondPC},[File,Self,MainAuthor],infinity), CheckNextPC4 = false
+      end,
+      case CheckNextPC4 of
+        false -> do_nothing;
+        true ->
+          case ThirdAlive of
+            false -> do_nothing;
+            true -> List = gen_server:call({local_server,ThirdPC},[File,Self,MainAuthor],infinity)
+          end
+      end
+  end,
+  List.
