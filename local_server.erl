@@ -69,7 +69,7 @@ init([]) ->
   {noreply, NewState :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #local_server_state{}} |
   {stop, Reason :: term(), NewState :: #local_server_state{}}).
-handle_call([File,PC], _, State = #local_server_state{}) ->
+handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
   case File of
     "file1.csv" -> PCNUM = 1, Table = authors1;
     "file2.csv" -> PCNUM = 2, Table = authors2;
@@ -80,10 +80,11 @@ handle_call([File,PC], _, State = #local_server_state{}) ->
   dets:open_file(Table, [{type, bag}]),
   dets:safe_fixtable(Table, true),
   io:format("PC~p start Map-Reduce1...~n",[PCNUM]),
-  mapReduce1:start1([File],self(),PCNUM),
+  %mapReduce1:start1([File],self(),PCNUM),
+  mapReduce1Ver2:startMR(File,self(),PCNUM,MainAuthor),
   %TableList = ets:tab2list(authors),
-  QH3 = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
-  TableList = qlc:e(QH3),
+  QH = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
+  TableList = qlc:e(QH),
   %ets:delete(authors),
   %dets:delete_all_objects(authors),
   %dets:close(authors),
