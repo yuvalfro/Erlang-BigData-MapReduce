@@ -34,33 +34,39 @@ startMR(File,PC,PCNUM,MainAuthor) ->
   ListNoMA = lists:delete(MainAuthor,ListOfAuthors),
   dets:insert(Table,{MainAuthor,ListNoMA}),
   NumOfProc = length(ListNoMA),
-  createProcceses(NumOfProc,CSV,1,PC,Table,ListNoMA),
+  createProcceses(NumOfProc,CSV,1,PC,Table,ListNoMA,2),
   gather(NumOfProc).
 
 %% Finish creating all the processes
-createProcceses(NumOfProc, CSV, Curr, PC, Table,ListNoMA) when Curr =:= NumOfProc  ->
+createProcceses(NumOfProc, CSV, Curr, PC, Table,ListNoMA, Level) when Curr =:= NumOfProc  ->
   case length(ListNoMA) of
     0 -> do_nothing;
     _ -> Author = lists:nth(Curr,ListNoMA),
-         spawn(fun() -> authorsToDETS(CSV,PC,Table,Author) end)
+         spawn(fun() -> authorsToDETS(CSV,PC,Table,Author, Level) end)
   end;
 %% Otherwise keep creating the processes
-createProcceses(NumOfProc, CSV, Curr, PC, Table, ListNoMA) ->
+createProcceses(NumOfProc, CSV, Curr, PC, Table, ListNoMA, Level) ->
   case length(ListNoMA) of
     0 -> do_nothing;
     _ -> Author = lists:nth(Curr,ListNoMA),
-         spawn(fun() -> authorsToDETS(CSV,PC,Table,Author) end),
-         createProcceses(NumOfProc, CSV, Curr+1, PC, Table, ListNoMA)
+         spawn(fun() -> authorsToDETS(CSV,PC,Table,Author, Level) end),
+         createProcceses(NumOfProc, CSV, Curr+1, PC, Table, ListNoMA, Level)
   end.
 
 %% We repeat the same steps that we did for the main author
-authorsToDETS(CSV,PC,Table,Author) ->
+authorsToDETS(CSV,PC,Table,Author,Level) ->
   ListofAuthor = [Authors || Authors <- CSV, lists:member(Author,string:tokens(element(2,Authors),[$|]))],
   ListofAllAuthors = lists:map(fun(X) -> string:tokens(element(2,X),[$|]) end,ListofAuthor),
   QH = qlc:q([X || X <- qlc:append(ListofAllAuthors)], {unique, true}),
   ListOfAuthors = qlc:e(QH),
   ListNoAuthor = lists:delete(Author,ListOfAuthors),
   dets:insert(Table,{Author,ListNoAuthor}),
+  case Level of
+    2 -> NumOfProc = length(ListNoAuthor),
+         createProcceses(NumOfProc,CSV,1,PC,Table,ListNoAuthor,3),
+         gather((length(ListNoAuthor)));
+    3 -> do_nothing
+  end,
   PC ! {"Finish"}.
 
 %% Gather function - wait until all processes finish
