@@ -23,13 +23,13 @@ start2(MainAuthor,PC) ->
   ets:insert(tableL1,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
   ets:insert(tableL2,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
   ets:insert(tableL3,[{'A',0},{'B',0},{'C',0},{'D',0},{'E',0},{'F',0},{'G',0},{'H',0},{'I',0},{'J',0},{'K',0},{'L',0},{'M',0},{'N',0},{'O',0},{'P',0},{'Q',0},{'R',0},{'S',0},{'T',0},{'U',0},{'V',0},{'W',0},{'X',0},{'Y',0},{'Z',0}]),
-  ValuesMain = ets:lookup(authors,list_to_atom(MainAuthor)),
+  ValuesMain = ets:lookup(authors,MainAuthor),
   Authors = element(2,lists:nth(1,ValuesMain)),   %% ADD TRY CATCH FOR EMPTY LIST
   %% Foreach author insert to etsL1 and spawn findL2
   lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}),
                           Y = list_to_atom(X),
                           register(mapReduce1:getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor,PC) end)) end,Authors),
-  AllChildren = lists:map(fun(X) -> length(element(2,lists:nth(1,ets:lookup(authors,list_to_atom(X))))) end, Authors),
+  AllChildren = lists:map(fun(X) -> length(element(2,lists:nth(1,ets:lookup(authors,X)))) end, Authors),
   mapReduce1:gather(lists:sum(AllChildren)), % Count all the children of authors to know when to finish
   TableList1 = ets:tab2list(etsL1),
   TableList2 = ets:tab2list(etsL2),
@@ -62,9 +62,9 @@ start2(MainAuthor,PC) ->
 %% If false, create another process, and wait for him to send message after finish the function findL3, and only then count down the gather
 
 findL2(A,MainAuthor,PC) ->
-  Values = ets:lookup(authors, list_to_atom(A)),
+  Values = ets:lookup(authors, A),
   Authors = element(2,lists:nth(1,Values)),
-  lists:foreach(fun(X) -> MainAuthorCheck = list_to_atom(X) == MainAuthor,
+  lists:foreach(fun(X) -> MainAuthorCheck = X == MainAuthor,
                          case MainAuthorCheck or ets:member(etsL1,X) of  % Check if the author in etsL1 or he is the main author
                             % The author in L1, don't insert again
                             true -> PC ! {"Finish"};
@@ -75,15 +75,18 @@ findL2(A,MainAuthor,PC) ->
                           end, Authors).
 
 findL3(A,MainAuthor,PC) ->
-  Values = ets:lookup(authors,list_to_atom(A)),
-  Authors = element(2,lists:nth(1,Values)),
-  lists:foreach(fun(X) -> MainAuthorCheck = list_to_atom(X) == MainAuthor,
-                          case MainAuthorCheck or ets:member(etsL1,X) or ets:member(etsL2,X)  of  % Check if the author in etsL2 or etsL1 or he is the main author
-                            % The author in L1, don't insert again
-                            true -> do_nothing;
-                            %% The author not in L1, insert to etsL2 and spawn findL3
-                            false -> ets:insert(etsL3,{X,A}) end
-                          end, Authors),
+  Values = ets:lookup(authors,A),
+  case length(Values) of
+    0 -> do_nothing;
+    _ -> Authors = element(2,lists:nth(1,Values)),
+         lists:foreach(fun(X) -> MainAuthorCheck = X == MainAuthor,
+                case MainAuthorCheck or ets:member(etsL1,X) or ets:member(etsL2,X)  of  % Check if the author in etsL2 or etsL1 or he is the main author
+                  % The author in L1, don't insert again
+                  true -> do_nothing;
+                  % The author not in L1, insert to etsL2 and spawn findL3
+                  false -> ets:insert(etsL3,{X,A}) end
+                end, Authors)
+  end,
   PC ! {"Finish"}.
 
 %% Count for each level the name of authors that the family name starts in each letter
