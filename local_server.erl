@@ -49,14 +49,6 @@ start(Name) ->
   {ok, State :: #local_server_state{}} | {ok, State :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term()} | ignore).
 init([]) ->
-  file:delete("authors1"),
-  file:delete("authors2"),
-  file:delete("authors3"),
-  file:delete("authors4"),
-  file:delete("keycounter1"),
-  file:delete("keycounter2"),
-  file:delete("keycounter3"),
-  file:delete("keycounter4"),
   {ok, #local_server_state{}}.
 
 %% @private
@@ -76,18 +68,12 @@ handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
     "file3.csv" -> PCNUM = 3, Table = authors3;
     "file4.csv" -> PCNUM = 4, Table = authors4
   end,
-  %ets:new(authors,[bag,named_table,public]),
   dets:open_file(Table, [{type, bag}]),
   dets:safe_fixtable(Table, true),
   io:format("PC~p start Map-Reduce1...~n",[PCNUM]),
-  %mapReduce1:start1([File],self(),PCNUM),
   mapReduce1Ver2:startMR(File,self(),PCNUM,MainAuthor),
-  %TableList = ets:tab2list(authors),
   QH = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
   TableList = qlc:e(QH),
-  %ets:delete(authors),
-  %dets:delete_all_objects(authors),
-  %dets:close(authors),
   case File of
     "file1.csv" -> dets:delete_all_objects(authors1), dets:close(authors1), Send = "PC1";
     "file2.csv" -> dets:delete_all_objects(authors2), dets:close(authors2), Send = "PC2";
