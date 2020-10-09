@@ -10,7 +10,7 @@
 -author("oem").
 
 %% API
--export([startMR/4]).
+-export([startMR/4,gather/1]).
 -include_lib("stdlib/include/qlc.hrl").
 
 startMR(File,PC,PCNUM,MainAuthor) ->

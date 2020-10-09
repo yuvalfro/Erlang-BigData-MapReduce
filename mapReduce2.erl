@@ -9,7 +9,7 @@
 -module(mapReduce2).
 -author("oem").
 -export([start2/2]).
-%-include("mapReduce1.erl").
+
 %% API
 
 start2(MainAuthor,PC) ->
@@ -27,10 +27,9 @@ start2(MainAuthor,PC) ->
   Authors = element(2,lists:nth(1,ValuesMain)),   %% ADD TRY CATCH FOR EMPTY LIST
   %% Foreach author insert to etsL1 and spawn findL2
   lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}),
-                          Y = list_to_atom(X),
-                          register(mapReduce1:getProcessName(Y), spawn(fun() -> findL2(X,MainAuthor,PC) end)) end,Authors),
+                          spawn(fun() -> findL2(X,MainAuthor,PC) end) end,Authors),
   AllChildren = lists:map(fun(X) -> length(element(2,lists:nth(1,ets:lookup(authors,X)))) end, Authors),
-  mapReduce1:gather(lists:sum(AllChildren)), % Count all the children of authors to know when to finish
+  mapReduce1Ver2:gather(lists:sum(AllChildren)), % Count all the children of authors to know when to finish
   TableList1 = ets:tab2list(etsL1),
   TableList2 = ets:tab2list(etsL2),
   TableList3 = ets:tab2list(etsL3),
@@ -53,7 +52,6 @@ start2(MainAuthor,PC) ->
   ets:delete(tableL1),
   ets:delete(tableL2),
   ets:delete(tableL3),
-  killAll(Authors),
   {G,TabL1,TabL2,TabL3}.
 
 
@@ -70,8 +68,7 @@ findL2(A,MainAuthor,PC) ->
                             true -> PC ! {"Finish"};
                             %% The author not in L1, insert to etsL2 and spawn findL3
                             false -> ets:insert(etsL2,{X,A}),
-                                     CurrPRS = list_to_atom(X ++ integer_to_list(os:system_time(microsecond))),
-                                     register(mapReduce1:getProcessName(CurrPRS),spawn(fun() -> findL3(X,MainAuthor,PC) end)) end
+                                     spawn(fun() -> findL3(X,MainAuthor,PC) end) end
                           end, Authors).
 
 findL3(A,MainAuthor,PC) ->
@@ -118,13 +115,4 @@ addEdges(G,[H|T]) ->
   digraph:add_edge(G,element(1,H),element(2,H)),
   addEdges(G,T).
 
-%% Kill all processes
-killAll([]) -> do_nothing;
-killAll([H|T]) ->
-  X = list_to_atom(H),
-  case whereis(mapReduce1:getProcessName(X)) of
-       undefined -> do_nothing;
-       PRS -> unregister(mapReduce1:getProcessName(X)),exit(PRS,kill)
-  end,
-  killAll(T).
 
