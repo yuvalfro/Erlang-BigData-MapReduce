@@ -68,20 +68,26 @@ init([]) ->
   File4 = "file4.csv",
   Self = self(),
   MainAuthor = "Anthony Hartley",   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
-  ListPC1 = spawn(fun() -> gen_server:call({local_server,?PC1},[File1,Self,MainAuthor],infinity) end),
-  ListPC2 = spawn(fun() -> gen_server:call({local_server,?PC2},[File2,Self,MainAuthor],infinity) end),
-  ListPC3 = spawn(fun() -> gen_server:call({local_server,?PC3},[File3,Self,MainAuthor],infinity) end),
-  ListPC4 = spawn(fun() -> gen_server:call({local_server,?PC4},[File4,Self,MainAuthor],infinity) end),
-  %io:format("before gather~n"),
-  mapReduce1:gather(4),
-  %io:format("after gather~n"),
-  %ListPC1 = gen_server:call({local_server,?PC1},[File1,self()],infinity),
-  %ListPC2 = gen_server:call({local_server,?PC2},[File2,self()],infinity),
-  %ListPC3 = gen_server:call({local_server,?PC3},[File3,self()],infinity),
-  %ListPC4 = gen_server:call({local_server,?PC4},[File4,self()],infinity),
-  ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListPC1), orddict:from_list(ListPC2)),
-  ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(ListPC3)),
-  ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(ListPC4)),
+  spawn(fun() -> gen_server:call({local_server,?PC1},[File1,Self,MainAuthor],infinity) end),
+  spawn(fun() -> gen_server:call({local_server,?PC2},[File2,Self,MainAuthor],infinity) end),
+  spawn(fun() -> gen_server:call({local_server,?PC3},[File3,Self,MainAuthor],infinity) end),
+  spawn(fun() -> gen_server:call({local_server,?PC4},[File4,Self,MainAuthor],infinity) end),
+  List = gatherMaster(4),
+  io:format("list ~p~n",[List]),
+  List1 = tuple_to_list(lists:nth(1,List)),
+  io:format("list1 ~p~n",[List1]),
+  List2 = tuple_to_list(lists:nth(2,List)),
+  io:format("list2 ~p~n",[List2]),
+  List3 = tuple_to_list(lists:nth(3,List)),
+  io:format("list3 ~p~n",[List3]),
+  List4 = tuple_to_list(lists:nth(4,List)),
+  io:format("list4 ~p~n",[List4]),
+  %ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(List1), orddict:from_list(List2)),
+  %ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(List3)),
+  %ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(List4)),
+  ListOfAll1 = merge(List1,List2),
+  ListOfAll2 = merge(ListOfAll1,List3),
+  ListOfAll = merge(ListOfAll2,List4),
   ets:new(authors,[bag,named_table,public]),
   lists:foreach(fun(X) -> ets:insert(authors,{element(1,X),element(2,X)}) end, ListOfAll),
   io:format("master start Map-Reduce2...~n"),
@@ -116,7 +122,6 @@ handle_call(_Request, _From, State = #gen_server_state{}) ->
   {noreply, NewState :: #gen_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #gen_server_state{}}).
 handle_cast(_Request, State = #gen_server_state{}) ->
-  io:format("master got table from ~p...~n",[_Request]),
   {noreply, State}.
 
 %% @private
@@ -150,6 +155,7 @@ code_change(_OldVsn, State = #gen_server_state{}, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+%% Function that create the final graph with graphviz
 digraphTographviz(G) ->
   graphviz:graph("G",self()),
   EdgeList = getEdgesList(G),
@@ -164,6 +170,20 @@ digraphTographviz(G) ->
   graphviz:to_file("AuthorsTree.png", "png"),
   graphviz:delete().
 
+%% Return the elements of the edges
 getEdgesList(G)->
   B=digraph:edges(G),
   [digraph:edge(G,E) || E <- B].
+
+merge(In1,In2) ->
+  Combined = In1 ++ In2,
+  Fun      = fun(Key) -> {Key,proplists:get_all_values(Key,Combined)} end,
+  lists:map(Fun,proplists:get_keys(Combined)).
+
+gatherMaster(0) -> [];
+gatherMaster(N) ->
+  receive
+    {TableList,Send} ->
+      io:format("master got table from ~p...~n",[Send]),
+      TableList ++ gatherMaster(N-1)
+  end.
