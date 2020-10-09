@@ -85,6 +85,7 @@ handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
   %TableList = ets:tab2list(authors),
   QH = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
   TableList = qlc:e(QH),
+  io:format("table list ~p~n",[TableList]),
   %ets:delete(authors),
   %dets:delete_all_objects(authors),
   %dets:close(authors),
@@ -94,8 +95,7 @@ handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
     "file3.csv" -> dets:delete_all_objects(authors3), dets:close(authors3), Send = "PC3";
     "file4.csv" -> dets:delete_all_objects(authors4), dets:close(authors4), Send = "PC4"
   end,
-  gen_server:cast({global,master},Send),
-  PC ! {"Finish"},
+  PC ! {TableList, Send},
   io:format("Finish creating table...~n"),
   {reply, TableList, State}.
 

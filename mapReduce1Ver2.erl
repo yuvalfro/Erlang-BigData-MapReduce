@@ -45,13 +45,19 @@ startMR(File,PC,PCNUM,MainAuthor) ->
 
 %% Finish creating all the processes
 createProcceses(NumOfProc, CSV, Curr, PC, Table,ListNoMA) when Curr =:= NumOfProc  ->
-  Author = lists:nth(Curr,ListNoMA),
-  spawn(fun() -> authorsToDETS(CSV,PC,Table,Author) end);
+  case length(ListNoMA) of
+    0 -> do_nothing;
+    _ -> Author = lists:nth(Curr,ListNoMA),
+         spawn(fun() -> authorsToDETS(CSV,PC,Table,Author) end)
+  end;
 %% Otherwise keep creating the processes
 createProcceses(NumOfProc, CSV, Curr, PC, Table, ListNoMA) ->
-  Author = lists:nth(Curr,ListNoMA),
-  spawn(fun() -> authorsToDETS(CSV,PC,Table,Author) end),
-  createProcceses(NumOfProc, CSV, Curr+1, PC, Table, ListNoMA).
+  case length(ListNoMA) of
+    0 -> do_nothing;
+    _ -> Author = lists:nth(Curr,ListNoMA),
+         spawn(fun() -> authorsToDETS(CSV,PC,Table,Author) end),
+         createProcceses(NumOfProc, CSV, Curr+1, PC, Table, ListNoMA)
+  end.
 
 %% We repeat the same steps that we did for the main author
 authorsToDETS(CSV,PC,Table,Author) ->
