@@ -88,11 +88,11 @@ init([]) ->
   %io:format("Letters count in L1: ~p~n",[TabL1]),
   %io:format("Letters count in L2: ~p~n",[TabL2]),
   %io:format("Letters count in L3: ~p~n",[TabL3]),
-  io:format("master start create the graph...~n"),
+  io:format("master start creating the graph...~n"),
   digraphTographviz(G),
   mapReduce1:gather(1),
   ets:delete(authors),
-  io:format("master finish...~n"),
+  io:format("master finish! you can see the graph and tables now!~n"),
   {ok, #gen_server_state{}}.
 
 %% @private
@@ -172,6 +172,8 @@ getEdgesList(G)->
 gatherMaster(0,Map) -> Map;
 gatherMaster(N,Map) ->
   receive
+    {nodeup,_} -> do_nothing;
+    {nodedown,_} -> do_nothing;
     {TableList,Send} ->
       io:format("master got table from ~p...~n",[Send]),
       NewMap = maps:put(Send,TableList,Map),
