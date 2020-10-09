@@ -106,7 +106,7 @@ init([]) ->
   %io:format("Letters count in L3: ~p~n",[TabL3]),
   io:format("master start creating the graph...~n"),
   digraphTographviz(G),
-  mapReduce1:gather(1),
+  mapReduce1Ver2:gather(1),
   ets:delete(authors),
   io:format("master finish! you can see the graph and tables now!~n"),
   {ok, #gen_server_state{}}.
@@ -175,7 +175,7 @@ digraphTographviz(G) ->
                           FirstLetFam2= lists:sublist(lists:nth(2,string:tokens(element(2,X),[$ ])),1,1),
                           Son = FirstName2 ++ "_" ++ FirstLetFam2,
                           graphviz:add_edge(Father,Son) end, EdgeList),
-  mapReduce1:gather(length(EdgeList)),
+  mapReduce1Ver2:gather(length(EdgeList)),
   graphviz:to_file("AuthorsTree.png", "png"),
   graphviz:delete().
 
