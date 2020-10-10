@@ -54,14 +54,15 @@ init([]) ->
   file:delete("authors4"),
   net_kernel:monitor_nodes(true),
   timer:sleep(200),
-  net_kernel:connect_node(?PC1),
+  Connect1 = net_kernel:connect_node(?PC1),
   timer:sleep(200),
-  net_kernel:connect_node(?PC2),
+  Connect2 = net_kernel:connect_node(?PC2),
   timer:sleep(200),
-  net_kernel:connect_node(?PC3),
+  Connect3 = net_kernel:connect_node(?PC3),
   timer:sleep(200),
-  net_kernel:connect_node(?PC4),
+  Connect4 = net_kernel:connect_node(?PC4),
   timer:sleep(200),
+  PCcounter = counters:new(1,[atomics]),
   put(?PC1,?PC1),
   put(?PC2,?PC2),
   put(?PC3,?PC3),
@@ -71,13 +72,32 @@ init([]) ->
   File3 = "file3.csv",
   File4 = "file4.csv",
   Self = self(),
-  MainAuthor = "Anthony Hartley",   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
-  spawn(fun() -> gen_server:call({local_server,?PC1},[File1,Self,MainAuthor],infinity) end),
-  spawn(fun() -> gen_server:call({local_server,?PC2},[File2,Self,MainAuthor],infinity) end),
-  spawn(fun() -> gen_server:call({local_server,?PC3},[File3,Self,MainAuthor],infinity) end),
-  spawn(fun() -> gen_server:call({local_server,?PC4},[File4,Self,MainAuthor],infinity) end),
   Map = maps:new(),
-  AuthorsMap = gatherMaster(4,Map),
+  MainAuthor = "Anthony Hartley",   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
+  % Only if there is connection to the nodes than spawn them
+  case Connect1 of
+    true ->  spawn(fun() -> gen_server:call({local_server,?PC1},[File1,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M1 =maps:put("PC1",ok,Map);
+    false -> M1 =maps:put("PC1",nodedown,Map)
+  end,
+  case Connect2 of
+    true ->  spawn(fun() -> gen_server:call({local_server,?PC2},[File2,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M2 =maps:put("PC2",ok,Map);
+    false -> M2 =maps:put("PC2",nodedown,Map)
+  end,
+  case Connect3 of
+    true ->  spawn(fun() -> gen_server:call({local_server,?PC3},[File3,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M3 =maps:put("PC3",ok,Map);
+    false -> M3 =maps:put("PC3",nodedown,Map)
+  end,
+  case Connect4 of
+    true ->  spawn(fun() -> gen_server:call({local_server,?PC4},[File4,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M4 =maps:put("PC4",ok,Map);
+    false -> M4 =maps:put("PC4",nodedown,Map)
+  end,
+  % Merge the maps into one map
+  M12 = maps:fold(fun(K, V, Map1) -> maps:update_with(K, fun(X) -> X + V end, V, Map1) end, M1, M2),
+  M123 = maps:fold(fun(K, V, Map2) -> maps:update_with(K, fun(X) -> X + V end, V, Map2) end, M12, M3),
+  Mall = maps:fold(fun(K, V, Map3) -> maps:update_with(K, fun(X) -> X + V end, V, Map3) end, M123, M4),
+  % Number of connected nodes
+  NumOfPC = counters:get(PCcounter,1),
+  AuthorsMap = gatherMaster(NumOfPC,Mall),
   case maps:get("PC1",AuthorsMap) of
     nodedown -> List1 = [];%helpme(MainAuthor,File1,pc1);
     Authors1 -> List1 = Authors1
@@ -101,9 +121,13 @@ init([]) ->
   lists:foreach(fun(X) -> ets:insert(authors,{element(1,X),element(2,X)}) end, ListOfAll),
   io:format("master start Map-Reduce2...~n"),
   {G,TabL1,TabL2,TabL3} = mapReduce2:start2(MainAuthor,self()),
-  %io:format("Letters count in L1: ~p~n",[TabL1]),
-  %io:format("Letters count in L2: ~p~n",[TabL2]),
-  %io:format("Letters count in L3: ~p~n",[TabL3]),
+  L12 = merge(TabL1,TabL2),
+  L123 = merge(L12,TabL3),
+  L = lists:keysort(1,L123),
+  Lnew = lists:map(fun(X) -> {element(1,X),lists:flatten(element(2,X))} end, L),
+  Ltop = [{letter,'L1','L2','L3'}],
+  FamilyNameData = Ltop ++ Lnew,
+  io:format("Data for family name table ~n ~p ~n",[FamilyNameData]),
   io:format("master start creating the graph...~n"),
   digraphTographviz(G),
   mapReduce1:gather(1),
@@ -202,6 +226,13 @@ gatherMaster(N,Map) ->
       NewMap = maps:put(Send,TableList,Map),
       gatherMaster(N-1,NewMap)
   end.
+
+%% Function to merge the count of family name first letter of each letter into one data structure
+merge(In1,In2) ->
+  Combined = In1 ++ In2,
+  Fun      = fun(Key) -> {Key,proplists:get_all_values(Key,Combined)} end,
+  lists:map(Fun,proplists:get_keys(Combined)).
+
 
 %% Help function - if one of the nodes down, another node will process his data
 helpme(MainAuthor,File,PC) ->
