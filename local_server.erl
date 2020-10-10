@@ -71,7 +71,7 @@ handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
   dets:open_file(Table, [{type, bag}]),
   dets:safe_fixtable(Table, true),
   io:format("PC~p start Map-Reduce1...~n",[PCNUM]),
-  mapReduce1Ver2:startMR(File,self(),PCNUM,MainAuthor),
+  mapReduce1:startMR(File,self(),PCNUM,MainAuthor),
   QH = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
   TableList = qlc:e(QH),
   case File of

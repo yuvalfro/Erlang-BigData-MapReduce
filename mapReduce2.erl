@@ -29,7 +29,7 @@ start2(MainAuthor,PC) ->
   lists:foreach(fun(X) -> ets:insert(etsL1,{X,MainAuthor}),
                           spawn(fun() -> findL2(X,MainAuthor,PC) end) end,Authors),
   AllChildren = lists:map(fun(X) -> length(element(2,lists:nth(1,ets:lookup(authors,X)))) end, Authors),
-  mapReduce1Ver2:gather(lists:sum(AllChildren)), % Count all the children of authors to know when to finish
+  mapReduce1:gather(lists:sum(AllChildren)), % Count all the children of authors to know when to finish
   TableList1 = ets:tab2list(etsL1),
   TableList2 = ets:tab2list(etsL2),
   TableList3 = ets:tab2list(etsL3),

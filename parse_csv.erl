@@ -15,6 +15,7 @@ main([File]) ->
 	Rows.
 	%print_rows(Rows,1);
 
+%% Print rows, don't need it
 %print_rows([],_) ->
 %	ok;
 %print_rows([Row|T],Num) ->
