@@ -69,7 +69,7 @@ to_dot(Graph, File) ->
    % print nodes
    lists:foreach(
       fun(Node) ->
-            io:format(IODevice, "  ~s;~n",[Node]) 
+            io:format(IODevice, "  ~s ;~n",[Node])
       end, 
       Nodes
    ),
@@ -78,7 +78,7 @@ to_dot(Graph, File) ->
    lists:foreach(
       fun(Edge) ->
             {NodeOne, NodeTwo} = Edge,
-            io:format(IODevice, "  ~s ~s ~s;~n",[NodeOne, EdgeType, NodeTwo]) 
+            io:format(IODevice, "  ~s ~s ~s;~n",[NodeOne, EdgeType, NodeTwo])
       end, 
       Edges
    ),
