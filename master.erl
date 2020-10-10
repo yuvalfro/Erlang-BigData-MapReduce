@@ -73,7 +73,7 @@ init([]) ->
   File4 = "file4.csv",
   Self = self(),
   Map = maps:new(),
-  MainAuthor = "Anthony Hartley",   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
+  MainAuthor = "Anthony Hartley",%"Daisuke Kitayama",   %%% JUST FOR NOW! NEED TO BE INPUT FROM WX!!!!
   % Only if there is connection to the nodes than spawn them
   case Connect1 of
     true ->  spawn(fun() -> gen_server:call({local_server,?PC1},[File1,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M1 =maps:put("PC1",ok,Map);
@@ -124,9 +124,7 @@ init([]) ->
   L12 = merge(TabL1,TabL2),
   L123 = merge(L12,TabL3),
   L = lists:keysort(1,L123),
-  Lnew = lists:map(fun(X) -> {element(1,X),lists:flatten(element(2,X))} end, L),
-  Ltop = [{letter,'L1','L2','L3'}],
-  FamilyNameData = Ltop ++ Lnew,
+  FamilyNameData = lists:map(fun(X) -> {element(1,X),lists:flatten(element(2,X))} end, L),
   io:format("Data for family name table ~n ~p ~n",[FamilyNameData]),
   io:format("master start creating the graph...~n"),
   digraphTographviz(G),
