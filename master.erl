@@ -201,10 +201,28 @@ digraphTographviz(G) ->
   EdgeList = getEdgesList(G),
   lists:foreach(fun(X) -> FirstName1 = lists:nth(1,string:tokens(element(3,X),[$ ])),                        % First name of author
                           FirstLetFam1= lists:sublist(lists:nth(2,string:tokens(element(3,X),[$ ])),1,1),    % First letter of family name
-                          Father = FirstName1 ++ "_" ++ FirstLetFam1,
+                          % Graphviz doesn't know how to handle "." - so erase it ("." in ascii is 46)
+                          case lists:nth(length(FirstName1),FirstName1) of
+                            46 -> FatherName = lists:sublist(FirstName1,1,length(FirstName1)-1);
+                            _ -> FatherName = FirstName1
+                          end,
+                          % Graphviz doesn't know how to handle "-" - so change it to "_" ("-" in ascii is 45)
+                          FatherFirst = lists:map(fun(C) -> case C of
+                                                                45 -> 95;
+                                                                _ -> C
+                                                              end end,FatherName),
+                          Father = FatherFirst ++ "_" ++ FirstLetFam1,
                           FirstName2 = lists:nth(1,string:tokens(element(2,X),[$ ])),
                           FirstLetFam2= lists:sublist(lists:nth(2,string:tokens(element(2,X),[$ ])),1,1),
-                          Son = FirstName2 ++ "_" ++ FirstLetFam2,
+                          case lists:nth(length(FirstName2),FirstName2) of
+                           46 -> SonName = lists:sublist(FirstName2,1,length(FirstName2)-1);
+                            _ -> SonName = FirstName2
+                           end,
+                           SonFirst = lists:map(fun(C) -> case C of
+                                        45 -> 95;
+                                        _ -> C
+                                      end end,SonName),
+                          Son = SonFirst ++ "_" ++ FirstLetFam2,
                           graphviz:add_edge(Father,Son) end, EdgeList),
   mapReduce1:gather(length(EdgeList)),
   graphviz:to_file("AuthorsTree.png", "png"),
@@ -260,39 +278,39 @@ checkInput(MainAuthor) ->
 
 
 %% Help function - if one of the nodes down, another node will process his data
-helpme(MainAuthor,File,PC) ->
-  case PC of
-    pc1 -> OtherPC = {?PC2,?PC3,?PC4}, file:delete(authors1);
-    pc2 -> OtherPC = {?PC1,?PC3,?PC4}, file:delete(authors2);
-    pc3 -> OtherPC = {?PC1,?PC2,?PC4}, file:delete(authors3);
-    pc4 -> OtherPC = {?PC1,?PC2,?PC3}, file:delete(authors4)
-  end,
-  FirstPC = element(1,OtherPC),
-  SecondPC = element(2,OtherPC),
-  ThirdPC = element(3,OtherPC),
-  Self = self(),
-  FirstAlive = net_kernel:connect_node(FirstPC),
-  SecondAlive = net_kernel:connect_node(SecondPC),
-  ThirdAlive = net_kernel:connect_node(ThirdPC),
-  List = [],
-  case FirstAlive of
-    false -> CheckNextPC3 = true;
-    true -> List = gen_server:call({local_server,FirstPC},[File,Self,MainAuthor],infinity), CheckNextPC3 = false
-  end,
-  case CheckNextPC3 of
-    false -> do_nothing;
-    true ->
-      case SecondAlive of
-        false -> CheckNextPC4 = true;
-        true -> List = gen_server:call({local_server,SecondPC},[File,Self,MainAuthor],infinity), CheckNextPC4 = false
-      end,
-      case CheckNextPC4 of
-        false -> do_nothing;
-        true ->
-          case ThirdAlive of
-            false -> do_nothing;
-            true -> List = gen_server:call({local_server,ThirdPC},[File,Self,MainAuthor],infinity)
-          end
-      end
-  end,
-  List.
+%helpme(MainAuthor,File,PC) ->
+%  case PC of
+%    pc1 -> OtherPC = {?PC2,?PC3,?PC4}, file:delete(authors1);
+%    pc2 -> OtherPC = {?PC1,?PC3,?PC4}, file:delete(authors2);
+%    pc3 -> OtherPC = {?PC1,?PC2,?PC4}, file:delete(authors3);
+%    pc4 -> OtherPC = {?PC1,?PC2,?PC3}, file:delete(authors4)
+%  end,
+%  FirstPC = element(1,OtherPC),
+%  SecondPC = element(2,OtherPC),
+%  ThirdPC = element(3,OtherPC),
+%  Self = self(),
+%  FirstAlive = net_kernel:connect_node(FirstPC),
+%  SecondAlive = net_kernel:connect_node(SecondPC),
+%  ThirdAlive = net_kernel:connect_node(ThirdPC),
+%  List = [],
+%  case FirstAlive of
+%    false -> CheckNextPC3 = true;
+%    true -> List = gen_server:call({local_server,FirstPC},[File,Self,MainAuthor],infinity), CheckNextPC3 = false
+%  end,
+%  case CheckNextPC3 of
+%    false -> do_nothing;
+%    true ->
+%      case SecondAlive of
+%        false -> CheckNextPC4 = true;
+%        true -> List = gen_server:call({local_server,SecondPC},[File,Self,MainAuthor],infinity), CheckNextPC4 = false
+%      end,
+%      case CheckNextPC4 of
+%        false -> do_nothing;
+%        true ->
+%          case ThirdAlive of
+%            false -> do_nothing;
+%            true -> List = gen_server:call({local_server,ThirdPC},[File,Self,MainAuthor],infinity)
+%          end
+%      end
+%  end,
+%  List.
