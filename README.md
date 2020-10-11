@@ -5,7 +5,9 @@ Final project in Functional Programming in Concurrent and Distributed Systems co
 
 The purpose of this project is to process big data from dblp website (https://dblp.org/) with map-reduce algorithm.
 
-The database is a XML file from dblp website that was converted to CSV file. Credit for the conversion code: [dblp-to-csv](https://github.com/ThomHurks/dblp-to-csv)
+The database is a XML file from dblp website that was converted to CSV file. 
+
+Credit for the conversion code: [dblp-to-csv](https://github.com/ThomHurks/dblp-to-csv)
 
 The master split the data to other 4 computers/terminals, each one of get CSV file and parse it.
 
