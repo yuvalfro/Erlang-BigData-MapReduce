@@ -96,11 +96,15 @@ insertETStoTable([H|T],L) ->
     2 -> CharInETS = ets:lookup(tableL2,Key);
     3 -> CharInETS = ets:lookup(tableL3,Key)
   end,
-  NewVal = element(2,lists:nth(1,CharInETS)) + 1, % Add 1 to the letter counter
-  case L of
-    1 -> ets:insert(tableL1,{Key,NewVal});
-    2 -> ets:insert(tableL2,{Key,NewVal});
-    3 -> ets:insert(tableL3,{Key,NewVal})
+  case CharInETS of
+    [] -> do_nothing;
+    List ->
+      NewVal = element(2,lists:nth(1,List)) + 1, % Add 1 to the letter counter
+      case L of
+        1 -> ets:insert(tableL1,{Key,NewVal});
+        2 -> ets:insert(tableL2,{Key,NewVal});
+        3 -> ets:insert(tableL3,{Key,NewVal})
+      end
   end,
   insertETStoTable(T,L).
 

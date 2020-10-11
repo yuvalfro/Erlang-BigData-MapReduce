@@ -15,7 +15,10 @@
 -include_lib("wx/include/wx.hrl").
 start(List) ->
 	Wx = wx:new(),
-	Frame = wxFrame:new(Wx, ?wxID_ANY, "Family name first letter on each level", [{size,{200,200}}]),
+	Frame = wxFrame:new(Wx, ?wxID_ANY, "Family name table", [{pos,{300,200}},{size,{200,200}}]),
+	Text = "         This table shows how much authors family
+	names start with each letter in each level",
+	Label = wxStaticText:new(Frame, 2, Text, [{style, ?wxALIGN_CENTER_HORIZONTAL}]),
 
 	Panel = wxPanel:new(Frame, []),
 	
@@ -24,6 +27,7 @@ start(List) ->
     Sizer = wxStaticBoxSizer:new(?wxVERTICAL, Panel),
     Grid = create_grid(Panel,List),
     Options = [{flag, ?wxEXPAND}, {proportion, 1}],
+   	wxSizer:add(Sizer, Label, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
     wxSizer:add(Sizer, Grid, Options),
     wxSizer:add(MainSizer, Sizer, Options),
     wxPanel:setSizer(Panel, MainSizer),

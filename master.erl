@@ -64,7 +64,7 @@ init([]) ->
   {noreply, NewState :: #gen_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #gen_server_state{}} |
   {stop, Reason :: term(), NewState :: #gen_server_state{}}).
-handle_call([MainAuthor], _From, State = #gen_server_state{}) ->
+handle_call([MainAuthor,WX], _From, State = #gen_server_state{}) ->
   Find = checkInput(MainAuthor),
   file:delete("AuthorsTree.png"),
   file:delete("authors1"),
@@ -72,7 +72,7 @@ handle_call([MainAuthor], _From, State = #gen_server_state{}) ->
   file:delete("authors3"),
   file:delete("authors4"),
   case Find of
-    true -> FamilyNameData = [];
+    true -> FamilyNameData = [], WX ! {FamilyNameData,"Error"};
     false ->
       net_kernel:monitor_nodes(true),
       timer:sleep(200),
@@ -149,7 +149,7 @@ handle_call([MainAuthor], _From, State = #gen_server_state{}) ->
       io:format("master start creating the graph...~n"),
       digraphTographviz(G),
       mapReduce1:gather(1),
-      %WX ! {FamilyNameData,"Finish"},
+      WX ! {FamilyNameData,"Finish"},
       ets:delete(authors),
       io:format("master finish! you can see the graph and tables now!~n")
   end,

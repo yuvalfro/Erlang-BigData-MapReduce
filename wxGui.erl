@@ -9,7 +9,7 @@
 -module(wxGui).
 -behaviour(gen_server).
 -export([start_link/0]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, handlePicture/2]).
 -include_lib("wx/include/wx.hrl").
 -define(SERVER, ?MODULE).
 -define(Master, 'master@127.0.0.1').
@@ -38,7 +38,7 @@ init([]) ->
   Counter = wxTextCtrl:new(Frame, 60, [{value, ""}, {style, ?wxTE_LEFT}]),   %text box value and align
   Font = wxFont:new(14, ?wxFONTFAMILY_DEFAULT, ?wxFONTSTYLE_NORMAL, ?wxFONTWEIGHT_NORMAL),    %font size and design
   wxTextCtrl:setFont(Counter, Font),
-  Button = wxButton:new(Frame, ?wxID_ANY, [{label, "search"}]),    %new button with text
+  Button = wxButton:new(Frame, ?wxID_ANY, [{label, "search"},{size,{250,30}}]),    %new button with text
   CounterSizer = wxBoxSizer:new(?wxVERTICAL), %vertical mean that the bottom will be down the text
   wxSizer:add(CounterSizer, Label2, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
   wxSizer:add(CounterSizer, Label, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
@@ -49,7 +49,7 @@ init([]) ->
   MainSizer = wxBoxSizer:new(?wxVERTICAL),
   wxSizer:add(MainSizer, StaticBitmap, [{flag, ?wxALL bor ?wxEXPAND}]),
   wxSizer:add(MainSizer, CounterSizer, [{flag, ?wxALIGN_CENTER},{border,100}]),
-  wxSizer:add(MainSizer, Button, [{flag,?wxALIGN_CENTER},{border,80}]),
+  wxSizer:add(MainSizer, Button, [{flag, ?wxALIGN_CENTER},{border,80}]),
   wxWindow:setSizer(Frame, MainSizer),
   %wxSizer:setSizeHints(MainSizer, Frame),
   %wxWindow:setMinSize(Frame, wxWindow:getSize(Frame)),
@@ -63,7 +63,7 @@ handle_call(_Request, _From, State) -> Reply = ok,
 handle_cast(_Msg, State) ->    {noreply, State}.
 
 %when counting_down=false it mean      need to start count
-handle_info(#wx{obj = Button, event = #wxCommand{type = command_button_clicked}}, #state{counter = Counter, counting_down = false} = State) ->   %% build and layout the GUI components
+handle_info(#wx{obj = Button, event = #wxCommand{type = command_button_clicked}}, #state{counter = _, counting_down = false} = State) ->   %% build and layout the GUI components
   wxButton:setLabel(Button, "Waiting for result"), %% set the bottom to stop (because start to count).
   TRef = erlang:send_after(1000, self(), update_gui),{noreply, State#state{tref = TRef, 		counting_down =   true}} ;
 
@@ -92,12 +92,15 @@ handle_info(update_gui, #state{button = Button, counter = Counter, counting_down
       wxTextCtrl:setEditable(Counter, true),
       wxButton:setLabel(Button, "search");
     true ->
-      List = gen_server:call({global,master},[MainAuthor]),
+      Self = self(),
+      %List = gen_server:call({global,master},[MainAuthor]),
+      spawn(fun() -> gen_server:call({global,master},[MainAuthor,Self]) end),
+      List = receiveMaster(),
       case List of % Check if the author exist
         [] ->
           io:format("This author doesn't exist in dblp~n"),
           Frame1 = wxFrame:new(wx:null(), 3, "Error",[{pos,{550,200}}]),
-          Label = wxStaticText:new(Frame1, 2, "This author doesn't exist in dblp", [{style, ?wxALIGN_CENTRE_HORIZONTAL}]),
+          Label = wxStaticText:new(Frame1, 2, "This author doesn't exist in dblp,  please enter a new name", [{style, ?wxALIGN_CENTRE_HORIZONTAL}]),
           CounterSizer = wxBoxSizer:new(?wxVERTICAL), %vertical mean that the bottom will be down the text
           wxSizer:add(CounterSizer, Label, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
           wxFrame:show(Frame1),
@@ -105,21 +108,61 @@ handle_info(update_gui, #state{button = Button, counter = Counter, counting_down
           wxTextCtrl:setEditable(Counter, true),
           wxButton:setLabel(Button, "search");
         _ ->
-          Frame1 = wxFrame:new(wx:null(), 3, "Authors Tree",[{pos,{550,200}}]),
+         % Frame1 = wxFrame:new(wx:null(), 3, "Authors Tree",[{pos,{550,200}}]),
+          %wxFrame:show(Frame1),
           makeTable:start(List),
-          MainSizer1 = wxBoxSizer:new(?wxHORIZONTAL),
-          wxWindow:setSizer(Frame1, MainSizer1),
-          Image = wxImage:new("AuthorsTree.png", []),
-          Bitmap = wxBitmap:new(wxImage:scale(Image, round(wxImage:getWidth(Image) * 0.5), round(wxImage:getHeight(Image) * 0.5), [{quality, ?wxIMAGE_QUALITY_HIGH}])),
-          StaticBitmap = wxStaticBitmap:new(Frame1, ?wxID_ANY, Bitmap),
-          wxSizer:add(MainSizer1, StaticBitmap, [{flag, ?wxALL bor ?wxEXPAND}]),
-          wxFrame:show(Frame1),
+         % MainSizer1 = wxBoxSizer:new(?wxHORIZONTAL),
+         % wxWindow:setSizer(Frame1, MainSizer1),
+         % Image = wxImage:new("AuthorsTree.png", []),
+          %Panel = wxPanel:new(Frame1),
+          %wxPanel:connect(Panel, paint, [{callback,fun(WxData, _)-> wxGui:handlePicture(Panel, WxData)end}]),
+         % Bitmap = wxBitmap:new(wxImage:scale(Image, round(wxImage:getWidth(Image)), round(wxImage:getHeight(Image)), [{quality, ?wxIMAGE_QUALITY_HIGH}])),
+         % StaticBitmap = wxStaticBitmap:new(Frame1, ?wxID_ANY, Bitmap),
+         % wxSizer:add(MainSizer1, StaticBitmap, [{flag, ?wxALL bor ?wxEXPAND}]),
+         % wxFrame:show(Frame1),
           wxTextCtrl:setValue(Counter, ""),     %when counter=1
           wxTextCtrl:setEditable(Counter, true),
           wxButton:setLabel(Button, "search")
       end
   end,
   {noreply, State#state{counting_down = false}}.
+
+receiveMaster() ->
+  receive
+  % nodeup message - keep waiting
+    {nodeup,_} -> receiveMaster();
+  % nodedown message - insert 'nodedown' into map and continue
+    {nodedown,_} ->
+      io:format("Master is down! ~n"),
+      Frame1 = wxFrame:new(wx:null(), 3, "Error",[{pos,{550,200}}]),
+      Label = wxStaticText:new(Frame1, 2, "Master is down! Please Connect it", [{style, ?wxALIGN_CENTRE_HORIZONTAL}]),
+      CounterSizer = wxBoxSizer:new(?wxVERTICAL), %vertical mean that the bottom will be down the text
+      wxSizer:add(CounterSizer, Label, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
+      wxFrame:show(Frame1);
+  % FamilyNameData message - doesn't matter if error or finish. return the list
+    {FamilyNameData,"Finish"} ->
+      FamilyNameData;
+    {FamilyNameData,"Error"} ->
+      FamilyNameData
+  end.
+
+handlePicture(Panel, _)->
+  timer:sleep(200),
+  Picture = wxImage:new("AuthorsTree.png"),
+  {Width, Height} = {wxImage:getWidth(Picture),wxImage:getHeight(Picture)},
+  {Width1, Height1} = wxPanel:getSize(Panel),
+
+  %{Width1, Height1} = wxPanel:getSize(Panel17),
+  PictureDrawScaled1 =case Width*Height1/Height-Width1 of
+                        Res when Res<0 -> wxImage:scale(Picture, round(Width*Height1/Height), round(Height1));
+                        _ -> wxImage:scale(Picture, round(Width1), round(Height*Width1/Width))
+                      end,
+  PictureBit = wxBitmap:new(PictureDrawScaled1),
+  DC = wxPaintDC:new(Panel),
+  wxDC:drawBitmap(DC, PictureBit, {0,0}),
+  wxPaintDC:destroy(DC),
+  wxWindow:updateWindowUI(Panel),
+  done.
 
 terminate(_Reason, _State) ->    wx:destroy(),
   ok.
