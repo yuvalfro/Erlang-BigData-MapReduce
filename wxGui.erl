@@ -108,24 +108,30 @@ handle_info(update_gui, #state{button = Button, counter = Counter, counting_down
           wxTextCtrl:setEditable(Counter, true),
           wxButton:setLabel(Button, "search");
         _ ->
-          Frame1 = wxFrame:new(wx:null(), 3, "Authors Tree",[{pos,{550,200}}]),
-          wxFrame:show(Frame1),
           makeTable:start(List),
-         % MainSizer1 = wxBoxSizer:new(?wxHORIZONTAL),
-         % wxWindow:setSizer(Frame1, MainSizer1),
-         % Image = wxImage:new("AuthorsTree.png", []),
-          Panel = wxPanel:new(Frame1),
-          wxPanel:connect(Panel, paint, [{callback,fun(WxData, _)-> wxGui:handlePicture(Panel, WxData)end}]),
-         % Bitmap = wxBitmap:new(wxImage:scale(Image, round(wxImage:getWidth(Image)), round(wxImage:getHeight(Image)), [{quality, ?wxIMAGE_QUALITY_HIGH}])),
-         % StaticBitmap = wxStaticBitmap:new(Frame1, ?wxID_ANY, Bitmap),
-         % wxSizer:add(MainSizer1, StaticBitmap, [{flag, ?wxALL bor ?wxEXPAND}]),
-         % wxFrame:show(Frame1),
+          os:cmd("xdg-open AuthorsTree.png"),
           wxTextCtrl:setValue(Counter, ""),     %when counter=1
           wxTextCtrl:setEditable(Counter, true),
           wxButton:setLabel(Button, "search")
       end
   end,
   {noreply, State#state{counting_down = false}}.
+
+      %% IF We want to open AuthorsTree.png with frame
+        % Frame1 = wxFrame:new(wx:null(), 3, "Authors Tree",[{pos,{550,200}}]),
+        % wxFrame:show(Frame1),
+
+        % MainSizer1 = wxBoxSizer:new(?wxHORIZONTAL),
+        % wxWindow:setSizer(Frame1, MainSizer1),
+        % Image = wxImage:new("AuthorsTree.png", []),
+        % Bitmap = wxBitmap:new(wxImage:scale(Image, round(wxImage:getWidth(Image)), round(wxImage:getHeight(Image)), [{quality, ?wxIMAGE_QUALITY_HIGH}])),
+        % StaticBitmap = wxStaticBitmap:new(Frame1, ?wxID_ANY, Bitmap),
+        % wxSizer:add(MainSizer1, StaticBitmap, [{flag, ?wxALL bor ?wxEXPAND}]),
+        % wxFrame:show(Frame1),
+
+        % Panel = wxPanel:new(Frame1),
+        %wxPanel:connect(Panel, paint, [{callback,fun(WxData, _)-> wxGui:handlePicture(Panel, WxData)end}]),
+
 
 receiveMaster() ->
   receive
