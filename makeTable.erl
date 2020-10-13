@@ -51,10 +51,12 @@ create_grid(Panel,List) ->
 	wxGrid:setColLabelValue(Grid, 2, "L3"),
   	%set valus from listOfTuple
 
-
   	WithIndex = lists:zip(lists:seq(1, length(List)), List), %make list with index
-lists:foreach(fun(X) -> L1 = lists:nth(1,element(2,element(2,X))), L2 = lists:nth(2,element(2,element(2,X))), 				L3 = lists:nth(3,element(2,element(2,X))),
-			setValue(Grid,element(1,X),L1,L2,L3) end, WithIndex),
+lists:foreach(fun(X) ->
+							L1 = lists:nth(1,element(2,element(2,X))),
+							L2 = lists:nth(2,element(2,element(2,X))),
+							L3 = lists:nth(3,element(2,element(2,X))),
+							setValue(Grid,element(1,X),L1,L2,L3) end, WithIndex),
 
 	timer:sleep(50),
 
