@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0,start/1]).
+-export([start_link/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -33,11 +33,6 @@
   {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-
-start(Name) ->
-  io:format("Start ~n"),
-  ets:delete(authors),
-  gen_server:start({local, Name}, local_server, [], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -63,10 +58,10 @@ init([]) ->
   {stop, Reason :: term(), NewState :: #local_server_state{}}).
 handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
   case File of
-    "file1.csv" -> PCNUM = 1, Table = authors1;
-    "file2.csv" -> PCNUM = 2, Table = authors2;
-    "file3.csv" -> PCNUM = 3, Table = authors3;
-    "file4.csv" -> PCNUM = 4, Table = authors4
+    "file1.csv" -> PCNUM = 1, Table = authors1, Send = "PC1";
+    "file2.csv" -> PCNUM = 2, Table = authors2, Send = "PC2";
+    "file3.csv" -> PCNUM = 3, Table = authors3, Send = "PC3";
+    "file4.csv" -> PCNUM = 4, Table = authors4, Send = "PC4"
   end,
   dets:open_file(Table, [{type, bag}]),
   dets:safe_fixtable(Table, true),
@@ -74,18 +69,16 @@ handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
   mapReduce1:startMR(File,self(),PCNUM,MainAuthor),
   QH = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
   TableList = qlc:e(QH),
-  case File of
-    "file1.csv" -> dets:delete_all_objects(authors1), dets:close(authors1), Send = "PC1";
-    "file2.csv" -> dets:delete_all_objects(authors2), dets:close(authors2), Send = "PC2";
-    "file3.csv" -> dets:delete_all_objects(authors3), dets:close(authors3), Send = "PC3";
-    "file4.csv" -> dets:delete_all_objects(authors4), dets:close(authors4), Send = "PC4"
-  end,
+  %dets:delete_all_objects(Table),
+  %dets:close(Table),
   PC ! {TableList, Send},
   io:format("Finish creating table...~n"),
-  {reply, TableList, State}.
+  {reply, TableList, State};
 
-%handle_call(_Request, _From, State = #local_server_state{}) ->
- % {reply, ok, State}.
+handle_call([start], _From, State = #local_server_state{}) ->
+  io:format("in call~n"),
+  start_link(),
+  {noreply, State}.
 
 %% @private
 %% @doc Handling cast messages
@@ -93,7 +86,8 @@ handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
   {noreply, NewState :: #local_server_state{}} |
   {noreply, NewState :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #local_server_state{}}).
-handle_cast(_Request, State = #local_server_state{}) ->
+handle_cast([start], State = #local_server_state{}) ->
+  start_link(),
   {noreply, State}.
 
 %% @private
