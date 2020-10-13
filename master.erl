@@ -52,6 +52,24 @@ init([]) ->
   file:delete("authors2"),
   file:delete("authors3"),
   file:delete("authors4"),
+  net_kernel:monitor_nodes(true),
+  timer:sleep(200),
+  net_kernel:connect_node(?PC1),
+  timer:sleep(200),
+  net_kernel:connect_node(?PC2),
+  timer:sleep(200),
+  net_kernel:connect_node(?PC3),
+  timer:sleep(200),
+  net_kernel:connect_node(?PC4),
+  timer:sleep(200),
+  rpc:call(?PC1,local_server,start_link,[]),
+  rpc:call(?PC2,local_server,start_link,[]),
+  rpc:call(?PC3,local_server,start_link,[]),
+  rpc:call(?PC4,local_server,start_link,[]),
+  %gen_server:call({local_server,?PC1},[start]),
+  %gen_server:call({local_server,?PC2},[start]),
+  %gen_server:call({local_server,?PC3},[start]),
+  %gen_server:call({local_server,?PC4},[start]),
   {ok, #gen_server_state{}}.
 
 %% @private
@@ -65,79 +83,104 @@ init([]) ->
   {stop, Reason :: term(), Reply :: term(), NewState :: #gen_server_state{}} |
   {stop, Reason :: term(), NewState :: #gen_server_state{}}).
 handle_call([MainAuthor,WX], _From, State = #gen_server_state{}) ->
-  Find = checkInput(MainAuthor),
   file:delete("AuthorsTree.png"),
   file:delete("authors1"),
   file:delete("authors2"),
   file:delete("authors3"),
   file:delete("authors4"),
+  net_kernel:monitor_nodes(true),
+  timer:sleep(200),
+  Connect1 = net_kernel:connect_node(?PC1),
+  timer:sleep(200),
+  Connect2 = net_kernel:connect_node(?PC2),
+  timer:sleep(200),
+  Connect3 = net_kernel:connect_node(?PC3),
+  timer:sleep(200),
+  Connect4 = net_kernel:connect_node(?PC4),
+  timer:sleep(200),
+  PCcounter = counters:new(1,[atomics]),
+  put(?PC1,?PC1),
+  put(?PC2,?PC2),
+  put(?PC3,?PC3),
+  put(?PC4,?PC4),
+  File1 = "file1.csv",
+  File2 = "file2.csv",
+  File3 = "file3.csv",
+  File4 = "file4.csv",
+  Self = self(),
+  Map = maps:new(),
+  % Only if there is connection to the nodes than spawn them
+  case Connect1 of
+    true ->  spawn(fun() -> gen_server:call({local_server,?PC1},[File1,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M1 = maps:put("PC1",ok,Map);
+    false -> M1 = maps:put("PC1",nodedown,Map)
+  end,
+  case Connect2 of
+    true ->  spawn(fun() -> gen_server:call({local_server,?PC2},[File2,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M2 = maps:put("PC2",ok,Map);
+    false -> M2 = maps:put("PC2",nodedown,Map)
+  end,
+  case Connect3 of
+    true ->  spawn(fun() -> gen_server:call({local_server,?PC3},[File3,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M3 = maps:put("PC3",ok,Map);
+    false -> M3 = maps:put("PC3",nodedown,Map)
+  end,
+  case Connect4 of
+    true ->  spawn(fun() -> gen_server:call({local_server,?PC4},[File4,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M4 = maps:put("PC4",ok,Map);
+    false -> M4 = maps:put("PC4",nodedown,Map)
+  end,
+  % Merge the maps into one map
+  M12 = maps:fold(fun(K, V, Map1) -> maps:update_with(K, fun(X) -> X + V end, V, Map1) end, M1, M2),
+  M123 = maps:fold(fun(K, V, Map2) -> maps:update_with(K, fun(X) -> X + V end, V, Map2) end, M12, M3),
+  Mall = maps:fold(fun(K, V, Map3) -> maps:update_with(K, fun(X) -> X + V end, V, Map3) end, M123, M4),
+  % Number of connected nodes
+  NumOfPC = counters:get(PCcounter,1),
+  AuthorsMap = gatherMaster(NumOfPC,Mall),
+  case maps:get("PC1",AuthorsMap) of
+    nodedown -> List1 = [];%helpme(MainAuthor,File1,pc1);
+    Authors1 -> List1 = Authors1
+  end,
+  case maps:get("PC2",AuthorsMap) of
+    nodedown -> List2 = [];
+    Authors2 -> List2 = Authors2
+  end,
+  case maps:get("PC3",AuthorsMap) of
+    nodedown -> List3 = [];
+    Authors3 -> List3 = Authors3
+  end,
+  case maps:get("PC4",AuthorsMap) of
+    nodedown -> List4 = [];
+    Authors4 -> List4 = Authors4
+  end,
+  AuthorsPC1 = List1,
+  AuthorsPC2 = List2,
+  AuthorsPC3 = List3,
+  AuthorsPC4 = List4,
+  case AuthorsPC1 of
+    [] -> Find1 = true;
+    ok -> Find1 = true;
+    _ -> Find1 = length(element(2,lists:nth(1,AuthorsPC1))) == 0
+  end,
+  case AuthorsPC2 of
+    [] -> Find2 = true;
+    ok -> Find2 = true;
+    _ -> Find2 = length(element(2,lists:nth(1,AuthorsPC2))) == 0
+  end,
+  case AuthorsPC3 of
+    [] -> Find3 = true;
+    ok -> Find3 = true;
+    _ -> Find3 = length(element(2,lists:nth(1,AuthorsPC3))) == 0
+  end,
+  case AuthorsPC4 of
+    [] -> Find4 = true;
+    ok -> Find4 = true;
+    _ -> Find4 = length(element(2,lists:nth(1,AuthorsPC4))) == 0
+  end,
+  Find = Find1 and Find2 and Find3 and Find4,
   case Find of
+    % All the lists are empty - we check this now to parse the CSV only one time
     true -> FamilyNameData = [], WX ! {FamilyNameData,"Error"};
     false ->
-      net_kernel:monitor_nodes(true),
-      timer:sleep(200),
-      Connect1 = net_kernel:connect_node(?PC1),
-      timer:sleep(200),
-      Connect2 = net_kernel:connect_node(?PC2),
-      timer:sleep(200),
-      Connect3 = net_kernel:connect_node(?PC3),
-      timer:sleep(200),
-      Connect4 = net_kernel:connect_node(?PC4),
-      timer:sleep(200),
-      PCcounter = counters:new(1,[atomics]),
-      put(?PC1,?PC1),
-      put(?PC2,?PC2),
-      put(?PC3,?PC3),
-      put(?PC4,?PC4),
-      File1 = "file1.csv",
-      File2 = "file2.csv",
-      File3 = "file3.csv",
-      File4 = "file4.csv",
-      Self = self(),
-      Map = maps:new(),
-      % Only if there is connection to the nodes than spawn them
-      case Connect1 of
-        true ->  spawn(fun() -> gen_server:call({local_server,?PC1},[File1,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M1 =maps:put("PC1",ok,Map);
-        false -> M1 =maps:put("PC1",nodedown,Map)
-      end,
-      case Connect2 of
-        true ->  spawn(fun() -> gen_server:call({local_server,?PC2},[File2,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M2 =maps:put("PC2",ok,Map);
-        false -> M2 =maps:put("PC2",nodedown,Map)
-      end,
-      case Connect3 of
-        true ->  spawn(fun() -> gen_server:call({local_server,?PC3},[File3,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M3 =maps:put("PC3",ok,Map);
-        false -> M3 =maps:put("PC3",nodedown,Map)
-      end,
-      case Connect4 of
-        true ->  spawn(fun() -> gen_server:call({local_server,?PC4},[File4,Self,MainAuthor]) end), counters:add(PCcounter,1,1), M4 =maps:put("PC4",ok,Map);
-        false -> M4 =maps:put("PC4",nodedown,Map)
-      end,
-      % Merge the maps into one map
-      M12 = maps:fold(fun(K, V, Map1) -> maps:update_with(K, fun(X) -> X + V end, V, Map1) end, M1, M2),
-      M123 = maps:fold(fun(K, V, Map2) -> maps:update_with(K, fun(X) -> X + V end, V, Map2) end, M12, M3),
-      Mall = maps:fold(fun(K, V, Map3) -> maps:update_with(K, fun(X) -> X + V end, V, Map3) end, M123, M4),
-      % Number of connected nodes
-      NumOfPC = counters:get(PCcounter,1),
-      AuthorsMap = gatherMaster(NumOfPC,Mall),
-      case maps:get("PC1",AuthorsMap) of
-        nodedown -> List1 = [];%helpme(MainAuthor,File1,pc1);
-        Authors1 -> List1 = Authors1
-      end,
-      case maps:get("PC2",AuthorsMap) of
-        nodedown -> List2 = [];
-        Authors2 -> List2 = Authors2
-      end,
-      case maps:get("PC3",AuthorsMap) of
-        nodedown -> List3 = [];
-        Authors3 -> List3 = Authors3
-      end,
-      case maps:get("PC4",AuthorsMap) of
-        nodedown -> List4 = [];
-        Authors4 -> List4 = Authors4
-      end,
-      ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(List1), orddict:from_list(List2)),
-      ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(List3)),
-      ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(List4)),
+      ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(AuthorsPC1), orddict:from_list(AuthorsPC2)),
+      ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(AuthorsPC3)),
+      ListOfAll = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll2), orddict:from_list(AuthorsPC4)),
       ets:new(authors,[bag,named_table,public]),
       lists:foreach(fun(X) -> ets:insert(authors,{element(1,X),element(2,X)}) end, ListOfAll),
       io:format("master start Map-Reduce2...~n"),
@@ -257,24 +300,6 @@ merge(In1,In2) ->
   Combined = In1 ++ In2,
   Fun      = fun(Key) -> {Key,proplists:get_all_values(Key,Combined)} end,
   lists:map(Fun,proplists:get_keys(Combined)).
-
-%% Function to check if the author the we got as input in valid
-checkInput(MainAuthor) ->
-  File1 = parse_csv:main(["file1.csv"]),
-  File2 = parse_csv:main(["file2.csv"]),
-  File3 = parse_csv:main(["file3.csv"]),
-  File4 = parse_csv:main(["file4.csv"]),
-  ListofMA1 = [Authors1 || Authors1 <- File1, lists:member(MainAuthor,string:tokens(element(2,Authors1),[$|]))],
-  ListofMA2 = [Authors2 || Authors2 <- File2, lists:member(MainAuthor,string:tokens(element(2,Authors2),[$|]))],
-  ListofMA3 = [Authors3 || Authors3 <- File3, lists:member(MainAuthor,string:tokens(element(2,Authors3),[$|]))],
-  ListofMA4 = [Authors4 || Authors4 <- File4, lists:member(MainAuthor,string:tokens(element(2,Authors4),[$|]))],
-  Find1 = length(ListofMA1) == 0,
-  Find2 = length(ListofMA2) == 0,
-  Find3 = length(ListofMA3) == 0,
-  Find4 = length(ListofMA4) == 0,
-  Find = Find1 and Find2 and Find3 and Find4,
-  Find.
-
 
 
 %% Help function - if one of the nodes down, another node will process his data
