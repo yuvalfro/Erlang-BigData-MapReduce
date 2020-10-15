@@ -20,10 +20,10 @@
 
 
 -define(SERVER, ?MODULE).
--define(PC1, 'PC1@127.0.0.1').
--define(PC2, 'PC2@127.0.0.1').
--define(PC3, 'PC3@127.0.0.1').
--define(PC4, 'PC4@127.0.0.1').
+-define(PC1, 'PC1@10.100.102.17').
+-define(PC2, 'PC2@10.100.102.4').
+-define(PC3, 'PC3@10.100.102.17').
+-define(PC4, 'PC4@10.100.102.17').
 
 -record(gen_server_state, {}).
 
@@ -66,10 +66,6 @@ init([]) ->
   rpc:call(?PC2,local_server,start_link,[]),
   rpc:call(?PC3,local_server,start_link,[]),
   rpc:call(?PC4,local_server,start_link,[]),
-  %gen_server:call({local_server,?PC1},[start]),
-  %gen_server:call({local_server,?PC2},[start]),
-  %gen_server:call({local_server,?PC3},[start]),
-  %gen_server:call({local_server,?PC4},[start]),
   {ok, #gen_server_state{}}.
 
 %% @private
@@ -83,6 +79,26 @@ init([]) ->
   {stop, Reason :: term(), Reply :: term(), NewState :: #gen_server_state{}} |
   {stop, Reason :: term(), NewState :: #gen_server_state{}}).
 handle_call([MainAuthor,WX], _From, State = #gen_server_state{}) ->
+  case lists:member(authors1,dets:all()) of
+    true -> dets:delete_all_objects(authors1),
+      dets:close(authors1);
+    false -> do_nothing
+  end,
+  case lists:member(authors2,dets:all()) of
+    true -> dets:delete_all_objects(authors2),
+      dets:close(authors2);
+    false -> do_nothing
+  end,
+  case lists:member(authors3,dets:all()) of
+    true -> dets:delete_all_objects(authors3),
+      dets:close(authors3);
+    false -> do_nothing
+  end,
+  case lists:member(authors4,dets:all()) of
+    true -> dets:delete_all_objects(authors4),
+      dets:close(authors4);
+    false -> do_nothing
+  end,
   file:delete("AuthorsTree.png"),
   file:delete("authors1"),
   file:delete("authors2"),
