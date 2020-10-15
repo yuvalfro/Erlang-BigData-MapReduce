@@ -33,8 +33,6 @@ Compile all the files in all computers:
 
 ```c(parse_csv), c(graphviz), c(mapReduce1), c(mapReduce2), c(master), c(local_server), c(makeTable), c(wxGui)```
 
-In the other computers/terminal write: ```local_server:start_link()```
-
 Finally in the master computer write: ```wxGui:start_link()``` and the application will run
 
 Now all you need to do is to choose an author name and click "search".
