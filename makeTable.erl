@@ -50,7 +50,6 @@ create_grid(Panel,List) ->
 	wxGrid:setColLabelValue(Grid, 1, "L2"),
 	wxGrid:setColLabelValue(Grid, 2, "L3"),
   	%set valus from listOfTuple
-
   	WithIndex = lists:zip(lists:seq(1, length(List)), List), %make list with index
 lists:foreach(fun(X) ->
 							L1 = lists:nth(1,element(2,element(2,X))),
@@ -89,24 +88,25 @@ lists:foreach(fun(X) ->
 
 Grid.
 
-
-doFontR(_, 0, 6) -> ok;
-doFontR(_, 1, 6) -> ok;
-doFontR(_, 2, 6) -> ok;
-doFontR(_, 3, 6) -> ok;
-doFontR(_, 4, 6) -> ok;
-doFontR(_, 5, 6) -> ok;
-
-doFontR(Grid, R, C) -> 
-	wxGrid:setReadOnly(Grid, R, C, [{isReadOnly,true}]),
-        Font = wxFont:new(5, ?wxFONTFAMILY_SWISS, ?wxFONTSTYLE_NORMAL, ?wxFONTWEIGHT_NORMAL, []),
-	wxGrid:setCellBackgroundColour(Grid, R, C, {34,117,76}),
-	wxGrid:setCellFont(Grid, R, C, Font),
-	doFontR(Grid, R, C+1).
-
-setValue(Grid,Row,L1,L2,L3)-> 
+setValue(Grid,Row,L1,L2,L3)->
 	wxGrid:setCellValue(Grid,Row-1,0,integer_to_list(L1)),
 	wxGrid:setCellValue(Grid,Row-1,1,integer_to_list(L2)),
 	wxGrid:setCellValue(Grid,Row-1,2,integer_to_list(L3)).
+
+%doFontR(_, 0, 6) -> ok;
+%doFontR(_, 1, 6) -> ok;
+%doFontR(_, 2, 6) -> ok;
+%doFontR(_, 3, 6) -> ok;
+%doFontR(_, 4, 6) -> ok;
+%doFontR(_, 5, 6) -> ok;
+
+%doFontR(Grid, R, C) ->
+%	wxGrid:setReadOnly(Grid, R, C, [{isReadOnly,true}]),
+%        Font = wxFont:new(5, ?wxFONTFAMILY_SWISS, ?wxFONTSTYLE_NORMAL, ?wxFONTWEIGHT_NORMAL, []),
+	%wxGrid:setCellBackgroundColour(Grid, R, C, {34,117,76}),
+	%wxGrid:setCellFont(Grid, R, C, Font),
+	%doFontR(Grid, R, C+1).
+
+
 
 
