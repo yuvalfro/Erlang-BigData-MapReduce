@@ -12,7 +12,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, handlePicture/2]).
 -include_lib("wx/include/wx.hrl").
 -define(SERVER, ?MODULE).
--define(Master, 'master@127.0.0.1').
+-define(Master, 'master@10.100.102.4').
 -record(state, {counter, button, counting_down, tref}).
 
 start_link() ->    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
@@ -93,7 +93,6 @@ handle_info(update_gui, #state{button = Button, counter = Counter, counting_down
       wxButton:setLabel(Button, "search");
     true ->
       Self = self(),
-      %List = gen_server:call({global,master},[MainAuthor]),
       spawn(fun() -> gen_server:call({global,master},[MainAuthor,Self]) end),
       List = receiveMaster(),
       case List of % Check if the author exist
@@ -117,34 +116,24 @@ handle_info(update_gui, #state{button = Button, counter = Counter, counting_down
   end,
   {noreply, State#state{counting_down = false}}.
 
-      %% IF We want to open AuthorsTree.png with frame
-        % Frame1 = wxFrame:new(wx:null(), 3, "Authors Tree",[{pos,{550,200}}]),
-        % wxFrame:show(Frame1),
-
-        % MainSizer1 = wxBoxSizer:new(?wxHORIZONTAL),
-        % wxWindow:setSizer(Frame1, MainSizer1),
-        % Image = wxImage:new("AuthorsTree.png", []),
-        % Bitmap = wxBitmap:new(wxImage:scale(Image, round(wxImage:getWidth(Image)), round(wxImage:getHeight(Image)), [{quality, ?wxIMAGE_QUALITY_HIGH}])),
-        % StaticBitmap = wxStaticBitmap:new(Frame1, ?wxID_ANY, Bitmap),
-        % wxSizer:add(MainSizer1, StaticBitmap, [{flag, ?wxALL bor ?wxEXPAND}]),
-        % wxFrame:show(Frame1),
-
-        % Panel = wxPanel:new(Frame1),
-        %wxPanel:connect(Panel, paint, [{callback,fun(WxData, _)-> wxGui:handlePicture(Panel, WxData)end}]),
-
-
 receiveMaster() ->
   receive
   % nodeup message - keep waiting
     {nodeup,_} -> receiveMaster();
   % nodedown message - insert 'nodedown' into map and continue
     {nodedown,_} ->
-      io:format("Master is down! ~n"),
-      Frame1 = wxFrame:new(wx:null(), 3, "Error",[{pos,{550,200}}]),
-      Label = wxStaticText:new(Frame1, 2, "Master is down! Please Connect it", [{style, ?wxALIGN_CENTRE_HORIZONTAL}]),
-      CounterSizer = wxBoxSizer:new(?wxVERTICAL), %vertical mean that the bottom will be down the text
-      wxSizer:add(CounterSizer, Label, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
-      wxFrame:show(Frame1);
+      ConnectMaster = net_kernel:connect_node(?Master),
+      case ConnectMaster of
+        % Falling of PC1/2/3/4 make the master also send a node down message, ignore it
+        true -> receiveMaster();
+        false ->
+          io:format("Master is down! ~n"),
+          Frame1 = wxFrame:new(wx:null(), 3, "Error",[{pos,{550,200}}]),
+          Label = wxStaticText:new(Frame1, 2, "Master is down! Please Connect it", [{style, ?wxALIGN_CENTRE_HORIZONTAL}]),
+          CounterSizer = wxBoxSizer:new(?wxVERTICAL), %vertical mean that the bottom will be down the text
+          wxSizer:add(CounterSizer, Label, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
+          wxFrame:show(Frame1)
+      end;
   % FamilyNameData message - doesn't matter if error or finish. return the list
     {FamilyNameData,"Finish"} ->
       FamilyNameData;
