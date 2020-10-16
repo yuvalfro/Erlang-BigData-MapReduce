@@ -1,6 +1,8 @@
 # Erlang-BigData-MapReduce
 Final project in Functional Programming in Concurrent and Distributed Systems course.
 
+Video of the project in [Youtube] (https://www.youtube.com/watch?v=vz8TKIhzUdE).
+
 **About the project**
 
 The purpose of this project is to process big data from dblp website (https://dblp.org/) with map-reduce algorithm.
