@@ -20,10 +20,10 @@
 
 
 -define(SERVER, ?MODULE).
--define(PC1, 'PC1@10.100.102.17').
--define(PC2, 'PC2@10.100.102.4').
--define(PC3, 'PC3@10.100.102.17').
--define(PC4, 'PC4@10.100.102.17').
+-define(PC1, 'PC1@127.0.0.1').
+-define(PC2, 'PC2@127.0.0.1').
+-define(PC3, 'PC3@127.0.0.1').
+-define(PC4, 'PC4@127.0.0.1').
 
 -record(gen_server_state, {}).
 
@@ -79,31 +79,12 @@ init([]) ->
   {stop, Reason :: term(), Reply :: term(), NewState :: #gen_server_state{}} |
   {stop, Reason :: term(), NewState :: #gen_server_state{}}).
 handle_call([MainAuthor,WX], _From, State = #gen_server_state{}) ->
-  case lists:member(authors1,dets:all()) of
-    true -> dets:delete_all_objects(authors1),
-      dets:close(authors1);
-    false -> do_nothing
-  end,
-  case lists:member(authors2,dets:all()) of
-    true -> dets:delete_all_objects(authors2),
-      dets:close(authors2);
-    false -> do_nothing
-  end,
-  case lists:member(authors3,dets:all()) of
-    true -> dets:delete_all_objects(authors3),
-      dets:close(authors3);
-    false -> do_nothing
-  end,
-  case lists:member(authors4,dets:all()) of
-    true -> dets:delete_all_objects(authors4),
-      dets:close(authors4);
-    false -> do_nothing
-  end,
+  % Check if dets tables are open - if yes than close them properly
+  gen_server:cast({local_server,?PC1},[delete,1]),
+  gen_server:cast({local_server,?PC2},[delete,2]),
+  gen_server:cast({local_server,?PC3},[delete,3]),
+  gen_server:cast({local_server,?PC4},[delete,4]),
   file:delete("AuthorsTree.png"),
-  file:delete("authors1"),
-  file:delete("authors2"),
-  file:delete("authors3"),
-  file:delete("authors4"),
   net_kernel:monitor_nodes(true),
   timer:sleep(200),
   Connect1 = net_kernel:connect_node(?PC1),
@@ -150,7 +131,7 @@ handle_call([MainAuthor,WX], _From, State = #gen_server_state{}) ->
   NumOfPC = counters:get(PCcounter,1),
   AuthorsMap = gatherMaster(NumOfPC,Mall),
   case maps:get("PC1",AuthorsMap) of
-    nodedown -> List1 = [];%helpme(MainAuthor,File1,pc1);
+    nodedown -> List1 = [];
     Authors1 -> List1 = Authors1
   end,
   case maps:get("PC2",AuthorsMap) of
@@ -192,7 +173,9 @@ handle_call([MainAuthor,WX], _From, State = #gen_server_state{}) ->
   Find = Find1 and Find2 and Find3 and Find4,
   case Find of
     % All the lists are empty - we check this now to parse the CSV only one time
-    true -> FamilyNameData = [], WX ! {FamilyNameData,"Error"};
+    true ->
+      FamilyNameData = [],
+      WX ! {FamilyNameData,"Error"};
     false ->
       ListOfAll1 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(AuthorsPC1), orddict:from_list(AuthorsPC2)),
       ListOfAll2 = orddict:merge(fun(_,X,Y) -> X++Y end, orddict:from_list(ListOfAll1), orddict:from_list(AuthorsPC3)),

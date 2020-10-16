@@ -58,10 +58,10 @@ init([]) ->
   {stop, Reason :: term(), NewState :: #local_server_state{}}).
 handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
   case File of
-    "file1.csv" -> PCNUM = 1, Table = authors1, Send = "PC1";
-    "file2.csv" -> PCNUM = 2, Table = authors2, Send = "PC2";
-    "file3.csv" -> PCNUM = 3, Table = authors3, Send = "PC3";
-    "file4.csv" -> PCNUM = 4, Table = authors4, Send = "PC4"
+    "file1.csv" -> PCNUM = 1, Table = authors1, Send = "PC1", file:delete("authors1");
+    "file2.csv" -> PCNUM = 2, Table = authors2, Send = "PC2", file:delete("authors2");
+    "file3.csv" -> PCNUM = 3, Table = authors3, Send = "PC3", file:delete("authors3");
+    "file4.csv" -> PCNUM = 4, Table = authors4, Send = "PC4", file:delete("authors4")
   end,
   dets:open_file(Table, [{type, bag}]),
   dets:safe_fixtable(Table, true),
@@ -69,16 +69,9 @@ handle_call([File,PC,MainAuthor], _, State = #local_server_state{}) ->
   mapReduce1:startMR(File,self(),PCNUM,MainAuthor),
   QH = qlc:q([{X,Y} || {X,Y} <- dets:table(Table), is_list(Y)]),
   TableList = qlc:e(QH),
-  %dets:delete_all_objects(Table),
-  %dets:close(Table),
   PC ! {TableList, Send},
   io:format("Finish creating table...~n"),
-  {reply, TableList, State};
-
-handle_call([start], _From, State = #local_server_state{}) ->
-  io:format("in call~n"),
-  start_link(),
-  {noreply, State}.
+  {reply, TableList, State}.
 
 %% @private
 %% @doc Handling cast messages
@@ -86,8 +79,19 @@ handle_call([start], _From, State = #local_server_state{}) ->
   {noreply, NewState :: #local_server_state{}} |
   {noreply, NewState :: #local_server_state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #local_server_state{}}).
-handle_cast([start], State = #local_server_state{}) ->
-  start_link(),
+handle_cast([delete,Num], State = #local_server_state{}) ->
+  case Num of
+     1 -> Table = authors1;
+     2 -> Table = authors2;
+     3 -> Table = authors3;
+     4 -> Table = authors4
+  end,
+  TableTemp = Table,
+  case lists:member(Table,dets:all()) of
+    true -> dets:delete_all_objects(TableTemp),
+      dets:close(TableTemp);
+    false -> do_nothing
+  end,
   {noreply, State}.
 
 %% @private
