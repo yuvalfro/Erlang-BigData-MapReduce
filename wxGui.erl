@@ -9,10 +9,10 @@
 -module(wxGui).
 -behaviour(gen_server).
 -export([start_link/0]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, handlePicture/2]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include_lib("wx/include/wx.hrl").
 -define(SERVER, ?MODULE).
--define(Master, 'master@10.100.102.4').
+-define(Master, 'master@127.0.0.1').
 -record(state, {counter, button, counting_down, tref}).
 
 start_link() ->    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
@@ -20,42 +20,57 @@ start_link() ->    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 init([]) ->
   Server = wx:new(),
   master:start_link(),
-  Text = "   About dblp:
-
-   The dblp computer science bibliography
-   provides open bibliographic information
-   on major computer science journals and proceedings.
-   Originally created at the University of Trier in 1993,
-   dblp is now operated and further developed by Schloss Dagstuhl.
-   For more information: https://dblp.org/",
-  Frame = wxFrame:new(Server, 1, "DBLP map-reduce Project",[{pos,{550,200}},{size,{500,500}}]),   %% build and layout the GUI components
+  Frame = wxFrame:new(Server, 1, "DBLP map-reduce Project",[{pos,{500,200}},{size,{400,400}}]),   %% build and layout the GUI components
+  wxWindow:setBackgroundColour(Frame, {123,162,252}),
   Label = wxStaticText:new(Frame, 2, "Please enter name of author", [{style, ?wxALIGN_CENTRE_HORIZONTAL}]),
-  Label2 = wxStaticText:new(Frame, 3, Text, [{style, ?wxALIGN_LEFT}]),
-  %Panel  = wxPanel:new(Frame), 
+  %Panel  = wxPanel:new(Frame),
   %Background = wxBitmap:new("include/background2.jpg", [{type, ?wxBITMAP_TYPE_PNG}]),
-  %G= wxStaticBitmap:new(Panel,1,Background,[{size,{650,700}}]),   
+  %G= wxStaticBitmap:new(Panel,1,Background,[{size,{650,700}}]),
   wxStaticText:wrap(Label,5000),
   Counter = wxTextCtrl:new(Frame, 60, [{value, ""}, {style, ?wxTE_LEFT}]),   %text box value and align
   Font = wxFont:new(14, ?wxFONTFAMILY_DEFAULT, ?wxFONTSTYLE_NORMAL, ?wxFONTWEIGHT_NORMAL),    %font size and design
   wxTextCtrl:setFont(Counter, Font),
-  Button = wxButton:new(Frame, ?wxID_ANY, [{label, "search"},{size,{250,30}}]),    %new button with text
+  Button = wxButton:new(Frame, ?wxID_ANY, [{label, "search"},{size,{200,30}}]),    %new button with text
+  Button1 = wxButton:new(Frame, ?wxID_ANY, [{label, "information"},{size,{200,30}}]),    %for more information
   CounterSizer = wxBoxSizer:new(?wxVERTICAL), %vertical mean that the bottom will be down the text
-  wxSizer:add(CounterSizer, Label2, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
   wxSizer:add(CounterSizer, Label, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
   wxSizer:add(CounterSizer, Counter, [{proportion,10},{flag, ?wxEXPAND bor ?wxALL}, {border, 15}]),
-  Image = wxImage:new("dblp-logo.png", []),
+  Image = wxImage:new("idea.png", []),
   Bitmap = wxBitmap:new(wxImage:scale(Image, round(wxImage:getWidth(Image)), round(wxImage:getHeight(Image)), [{quality, ?wxIMAGE_QUALITY_HIGH}])),
   StaticBitmap = wxStaticBitmap:new(Frame, ?wxID_ANY, Bitmap),
   MainSizer = wxBoxSizer:new(?wxVERTICAL),
   wxSizer:add(MainSizer, StaticBitmap, [{flag, ?wxALL bor ?wxEXPAND}]),
   wxSizer:add(MainSizer, CounterSizer, [{flag, ?wxALIGN_CENTER},{border,100}]),
   wxSizer:add(MainSizer, Button, [{flag, ?wxALIGN_CENTER},{border,80}]),
+  wxSizer:add(MainSizer, Button1, [{flag, ?wxALIGN_CENTER},{border,150}]),
   wxWindow:setSizer(Frame, MainSizer),
   %wxSizer:setSizeHints(MainSizer, Frame),
   %wxWindow:setMinSize(Frame, wxWindow:getSize(Frame)),
   wxButton:connect(Button, command_button_clicked),   %connect the button to handler-star fuction  "command_button_clicked"
+  wxEvtHandler:connect(Button1, command_button_clicked, [{callback, fun handle_click_event/2},
+    {userData, {wx:get_env(), Button1}}]),
+  %wxEvtHandler:connect(Button1, command_button_clicked,{callback, fun handle_click_event/0}),   %connect the button to handler-star fuction  "command_button_clicked"
   wxFrame:show(Frame),
   {ok, #state{counter = Counter, button = Button, counting_down = false}}.
+
+handle_click_event(_A = #wx{}, _B) ->
+  Frame3 = wxFrame:new(wx:null(), 3, "Information about dplb",[{pos,{500,250}}]),
+  wxWindow:setBackgroundColour(Frame3, {123,162,252}),
+  Text = "   About dblp:
+
+   The dblp computer science bibliography
+   provides open bibliographic information
+   on major computer science journals and proceedings.
+
+   Originally created at the University of Trier in 1993,
+   dblp is now operated and further developed by Schloss
+   Dagstuhl.
+
+   For more information: https://dblp.org/",
+  Label2 = wxStaticText:new(Frame3, 3, Text, [{style, ?wxALIGN_LEFT}]),
+  CounterSizer = wxBoxSizer:new(?wxVERTICAL), %vertical mean that the bottom will be down the text
+  wxSizer:add(CounterSizer, Label2, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
+  wxFrame:show(Frame3).
 
 handle_call(_Request, _From, State) -> Reply = ok,
   {reply, Reply, State}.
@@ -66,13 +81,6 @@ handle_cast(_Msg, State) ->    {noreply, State}.
 handle_info(#wx{obj = Button, event = #wxCommand{type = command_button_clicked}}, #state{counter = _, counting_down = false} = State) ->   %% build and layout the GUI components
   wxButton:setLabel(Button, "Waiting for result"), %% set the bottom to stop (because start to count).
   TRef = erlang:send_after(1000, self(), update_gui),{noreply, State#state{tref = TRef, 		counting_down =   true}} ;
-
-%when counting_down=true need to continue the counting
-%handle_info(#wx{obj = Button, event = #wxCommand{type = command_button_clicked}}, #state{counter = Counter, counting_down = true, tref = TRef} = State) ->    erlang:cancel_timer(TRef),
-%  wxTextCtrl:setEditable(Counter, true),
-%  wxButton:setLabel(Button, "search"),
-%  {noreply, State#state{tref = undefined, counting_down = false}};
-
 
 handle_info(update_gui, #state{button = Button, counter = Counter, counting_down = true} = State) ->
   MainAuthor = wxTextCtrl:getValue(Counter),
@@ -87,6 +95,7 @@ handle_info(update_gui, #state{button = Button, counter = Counter, counting_down
       Label = wxStaticText:new(Frame1, 2, "Please Connect master", [{style, ?wxALIGN_CENTRE_HORIZONTAL}]),
       CounterSizer = wxBoxSizer:new(?wxVERTICAL), %vertical mean that the bottom will be down the text
       wxSizer:add(CounterSizer, Label, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
+      wxWindow:setBackgroundColour(Frame1, {123,162,252}),
       wxFrame:show(Frame1),
       wxTextCtrl:setValue(Counter, ""),     %when counter=1
       wxTextCtrl:setEditable(Counter, true),
@@ -102,6 +111,7 @@ handle_info(update_gui, #state{button = Button, counter = Counter, counting_down
           Label = wxStaticText:new(Frame1, 2, "This author doesn't exist in dblp,  please enter a new name", [{style, ?wxALIGN_CENTRE_HORIZONTAL}]),
           CounterSizer = wxBoxSizer:new(?wxVERTICAL), %vertical mean that the bottom will be down the text
           wxSizer:add(CounterSizer, Label, [{flag, ?wxALL bor ?wxALIGN_CENTRE}, {border, 15}]),
+          wxWindow:setBackgroundColour(Frame1, {123,162,252}),
           wxFrame:show(Frame1),
           wxTextCtrl:setValue(Counter, ""),     %when counter=1
           wxTextCtrl:setEditable(Counter, true),
@@ -141,26 +151,7 @@ receiveMaster() ->
       FamilyNameData
   end.
 
-handlePicture(Panel, _)->
-  timer:sleep(200),
-  Picture = wxImage:new("AuthorsTree.png"),
-  {Width, Height} = {wxImage:getWidth(Picture),wxImage:getHeight(Picture)},
-  {Width1, Height1} = wxPanel:getSize(Panel),
-
-  %{Width1, Height1} = wxPanel:getSize(Panel17),
-  PictureDrawScaled1 =case Width*Height1/Height-Width1 of
-                        Res when Res<0 -> wxImage:scale(Picture, round(Width*Height1/Height), round(Height1));
-                        _ -> wxImage:scale(Picture, round(Width1), round(Height*Width1/Width))
-                      end,
-  PictureBit = wxBitmap:new(PictureDrawScaled1),
-  DC = wxPaintDC:new(Panel),
-  wxDC:drawBitmap(DC, PictureBit, {0,0}),
-  wxPaintDC:destroy(DC),
-  wxWindow:updateWindowUI(Panel),
-  done.
-
 terminate(_Reason, _State) ->    wx:destroy(),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->    {ok, State}.
-
