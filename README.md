@@ -1,7 +1,7 @@
 # Erlang-BigData-MapReduce
 Final project in Functional Programming in Concurrent and Distributed Systems course.
 
-Video of the project in [Youtube] (https://www.youtube.com/watch?v=vz8TKIhzUdE).
+Video of the project in [Youtube](https://www.youtube.com/watch?v=vz8TKIhzUdE).
 
 **About the project**
 
