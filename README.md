@@ -29,6 +29,8 @@ On the other compuetrs/terminals:
 
 ```erl -name PCi@ip -setcookie dblp``` Where 'i' is a number between 1 to 4
 
+Make sure to change the ip in PCnames.hrl file!
+
 Compile all the files in all computers:
 
 ```c(parse_csv), c(graphviz), c(mapReduce1), c(mapReduce2), c(master), c(local_server), c(makeTable), c(wxGui)```
