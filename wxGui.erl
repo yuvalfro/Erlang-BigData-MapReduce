@@ -12,7 +12,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include_lib("wx/include/wx.hrl").
 -define(SERVER, ?MODULE).
--define(Master, 'master@127.0.0.1').
+-include("PCnames.hrl").
 -record(state, {counter, button, counting_down, tref}).
 
 start_link() ->    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).

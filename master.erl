@@ -13,17 +13,14 @@
 
 %% API
 -export([start_link/0]).
-
+-include("PCnames.hrl").
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
 
 -define(SERVER, ?MODULE).
--define(PC1, 'PC1@127.0.0.1').
--define(PC2, 'PC2@127.0.0.1').
--define(PC3, 'PC3@127.0.0.1').
--define(PC4, 'PC4@127.0.0.1').
+
 
 -record(gen_server_state, {}).
 
